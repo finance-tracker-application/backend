@@ -1,13 +1,12 @@
-const dateTime = new Date().toISOString();
+const globalErrorHandler = (err, req, res, next) => {
+  err.statusCode = err.statusCode || 500;
+  err.message = err.message || "System Failure";
+  err.status = err.status || "error";
 
-const globalErrorHandler = (error, response, next) => {
-  error.statusCode = error.statusCode || 500;
-  error.message = error.message || "System Failure";
-  error.status = error.status || "Error";
-
-  response.status(error.statusCode).json({
-    dateTime: dateTime,
-    message: error.message,
+  res.status(err.statusCode).json({
+    dateTime: new Date().toISOString(), // Create fresh time for each error
+    status: err.status, // Send status ("fail" or "error")
+    message: err.message,
   });
 };
 
