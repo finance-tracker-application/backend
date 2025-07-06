@@ -71,7 +71,7 @@ app.get("/", (response, next) => {
 
 app.use("/fin-tracker/v1", indexRouter);
 
-app.use((next) => {
+app.use((req, res, next) => {
   next(
     new AppError(
       404,
