@@ -1,6 +1,7 @@
 import express from "express";
 import userAuthController from "../controllers/userAuthController.js";
 import authUtils from "../utils/authUtils.js";
+
 import {
   validateSignup,
   validateLogin,
@@ -19,6 +20,7 @@ authRouter
     authUtils.generateJWTToken
   );
 
+
 authRouter.route("/forgotPassword").post(userAuthController.forgotPassword);
 
 authRouter
@@ -28,5 +30,6 @@ authRouter
 authRouter
   .route("/logout")
   .post(authUtils.verifyJWTToken, userAuthController.logoutController);
+
 
 export default authRouter;
