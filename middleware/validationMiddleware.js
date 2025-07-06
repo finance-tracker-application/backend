@@ -114,9 +114,110 @@ const validatePasswordChange = (req, res, next) => {
   next();
 };
 
+// Transaction validation
+const validateTransaction = (req, res, next) => {
+  const { type, category, amount, description, currency } = req.body;
+
+  if (!type || !["income", "expense", "transfer"].includes(type)) {
+    return next(new AppError(400, "Valid transaction type is required"));
+  }
+
+  if (!category) {
+    return next(new AppError(400, "Category is required"));
+  }
+
+  if (!amount || amount <= 0) {
+    return next(new AppError(400, "Valid amount is required"));
+  }
+
+  if (!description || description.trim().length === 0) {
+    return next(new AppError(400, "Description is required"));
+  }
+
+  if (description.length > 500) {
+    return next(
+      new AppError(400, "Description must be less than 500 characters")
+    );
+  }
+
+  if (
+    currency &&
+    !["USD", "EUR", "GBP", "INR", "CAD", "AUD"].includes(currency)
+  ) {
+    return next(new AppError(400, "Invalid currency"));
+  }
+
+  // Validate tags
+  if (req.body.tags && Array.isArray(req.body.tags)) {
+    req.body.tags.forEach((tag) => {
+      if (tag.length > 20) {
+        return next(new AppError(400, "Tags must be less than 20 characters"));
+      }
+    });
+  }
+
+  next();
+};
+
+// Budget validation
+const validateBudget = (req, res, next) => {
+  const { name, type, period, categories, currency } = req.body;
+
+  if (!name || name.trim().length === 0) {
+    return next(new AppError(400, "Budget name is required"));
+  }
+
+  if (name.length > 100) {
+    return next(
+      new AppError(400, "Budget name must be less than 100 characters")
+    );
+  }
+
+  if (type && !["monthly", "yearly", "custom"].includes(type)) {
+    return next(new AppError(400, "Invalid budget type"));
+  }
+
+  if (!period || !period.startDate || !period.endDate) {
+    return next(
+      new AppError(400, "Budget period with start and end dates is required")
+    );
+  }
+
+  if (new Date(period.endDate) <= new Date(period.startDate)) {
+    return next(new AppError(400, "End date must be after start date"));
+  }
+
+  if (!categories || !Array.isArray(categories) || categories.length === 0) {
+    return next(new AppError(400, "At least one category is required"));
+  }
+
+  categories.forEach((cat) => {
+    if (!cat.category || !cat.allocatedAmount) {
+      return next(
+        new AppError(400, "Each category must have a name and allocated amount")
+      );
+    }
+
+    if (cat.allocatedAmount <= 0) {
+      return next(new AppError(400, "Allocated amount must be greater than 0"));
+    }
+  });
+
+  if (
+    currency &&
+    !["USD", "EUR", "GBP", "INR", "CAD", "AUD"].includes(currency)
+  ) {
+    return next(new AppError(400, "Invalid currency"));
+  }
+
+  next();
+};
+
 export {
   validateSignup,
   validateLogin,
   validateProfileUpdate,
   validatePasswordChange,
+  validateTransaction,
+  validateBudget,
 };
