@@ -11,7 +11,15 @@ const generateJWTToken = catchAsyncFunction(async (request, response, next) => {
     expiresIn: process.env.expirationOption,
   };
 
-  const token = jwt.sign(bodyPayload, secret, options);
+  // Create JWT payload with user ID
+  const jwtPayload = {
+    id: bodyPayload._id,
+    name: bodyPayload.name,
+    email: bodyPayload.email,
+    role: bodyPayload.role,
+  };
+
+  const token = jwt.sign(jwtPayload, secret, options);
 
   const userPayload = bodyPayload;
   userPayload.token = token;

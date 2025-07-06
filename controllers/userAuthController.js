@@ -47,8 +47,23 @@ const loginController = catchAsyncFunction(async (request, response, next) => {
   if (!isMatch) {
     return next(new AppError(401, "Username and Password invalid"));
   }
+
+  // Generate refresh token
+  const crypto = await import("crypto");
+  const refreshToken = crypto.randomBytes(40).toString("hex");
+  const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  // Store refresh token in database
+  findUser.refreshToken = {
+    token: refreshToken,
+    expiresAt: refreshTokenExpiry,
+    createdAt: new Date(),
+  };
+  await findUser.save();
+
   findUser.password = undefined;
-  request.body = findUser;
+  request.body = { ...findUser.toObject(), refreshToken };
+
 
   next();
 });
@@ -102,9 +117,24 @@ const resetPassword = catchAsyncFunction(async (request, response, next) => {
   successResponse(200, { message: "Password reset link created" }, response);
 });
 
+const logoutController = catchAsyncFunction(async (request, response, next) => {
+  const userId = request.token.id;
+  const user = await User.findById(userId);
+
+  if (user) {
+    // Clear refresh token
+    user.refreshToken = undefined;
+    await user.save();
+  }
+
+  return successResponse(200, { message: "Logged out successfully" }, response);
+});
+
 export default {
   signupController,
   loginController,
   forgotPassword,
   resetPassword,
+  logoutController,
+
 };
