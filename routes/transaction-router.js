@@ -1,11 +1,21 @@
 import express from "express";
 import transactionController from "../controllers/transactionController.js";
+import { validateTransaction } from "../middleware/validationMiddleware.js";
 import authUtils from "../utils/authUtils.js";
 
 const transactionRouter = express.Router();
 
+transactionRouter.use(authUtils.verifyJWTToken);
+
 transactionRouter
   .route("/")
-  .post(authUtils.verifyJWTToken, transactionController.createTransaction);
+  .post(transactionController.createTransaction)
+  .get(validateTransaction, transactionController.getAllTransactions);
+
+transactionRouter
+  .route("/:id")
+  .get(validateTransaction, transactionController.getTransactionById)
+  .put(validateTransaction, transactionController.updateTransaction)
+  .delete(validateTransaction, transactionController.deleteTransaction);
 
 export default transactionRouter;
