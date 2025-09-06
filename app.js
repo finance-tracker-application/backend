@@ -24,8 +24,8 @@ const app = express();
 app.use(cors(corsOptions));
 
 // Enhanced security middleware
-app.use(helmet(securityConfig.helmetConfig));
-
+//app.use(helmet(securityConfig.helmetConfig));
+app.use(helmet());
 // Rate limiting
 app.use(securityConfig.generalLimiter);
 
@@ -40,9 +40,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 
 // Security middleware
-app.use(xss());
-app.use(mongoSanitize());
-app.use(hpp());
+//app.use(xss());
+
+// Security middleware
+//app.use(mongoSanitize()); // Temporarily disabled due to Express 5.x compatibility
+
+app.use(hpp()); // Temporarily disabled to test
 
 app.use("/", (request, response, next) => {
   const apiRequestTime = new Date();
@@ -51,9 +54,9 @@ app.use("/", (request, response, next) => {
   next();
 });
 
-/* app.get("/", (response, next) => {
+app.get("/", (request, response, next) => {
   successResponse(200, "application is running", response);
-}); */
+});
 
 app.use("/fin-tracker/v1", indexRouter);
 

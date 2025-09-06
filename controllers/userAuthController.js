@@ -90,8 +90,10 @@ const forgotPassword = catchAsyncFunction(async (request, response, next) => {
 });
 
 const resetPassword = catchAsyncFunction(async (request, response, next) => {
-  const { passwordResetToken, password } = request.params;
-  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  const { passwordResetToken } = request.params;
+  const { password } = request.body;
+  const crypto = await import("crypto");
+  const hashedToken = crypto.createHash("sha256").update(passwordResetToken).digest("hex");
   const findUser = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gte: Date.now },

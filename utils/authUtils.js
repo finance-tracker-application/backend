@@ -1,10 +1,11 @@
 import jwt from "jsonwebtoken";
 import catchAsyncFunction from "./catchAsyncFunction.js";
 import successResponse from "./success-response.js";
+import AppError from "./AppError.js";
 
 const generateJWTToken = catchAsyncFunction(async (request, response, next) => {
   const { body } = request;
-  const bodyPayload = body.toObject();
+  const bodyPayload = body;
   const secret = process.env.secret;
 
   const options = {
