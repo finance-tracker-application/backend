@@ -1,0 +1,71 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+jobs:
+  # ------------- CI: install, (optional) lint/test/build ---------------- #
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: install
+        run: npm ci
+
+      - name: create .env file
+        run: cat > .env << 'EOF'
+          PORT=${{ secrets.PORT }}
+          MONGOdb=${{ secrets.MONGODB }}
+          testMONGOdb=${{ secrets.TEST_MONGODB }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          secret=${{ secrets.SECRET }}
+          expirationOption=${{ secrets.EXPIRATION_OPTION }}
+          allowedorigin=${{ secrets.ALLOWEDORIGIN }}
+          gmailPassword=${{ secrets.GMAIL_PASSWORD }}
+          gmailUser=${{ secrets.GMAIL_USER }}
+          applicationUrl=${{ secrets.APPLICATION_URL }}
+          EOF
+
+      - name: Build (if present)
+        run: |
+          if npm run | grep -q "^  build"; then
+            npm run build
+          else
+            echo "No build script, skipping."
+          fi
+
+  # ------------- Deploy to Render only after CI passes on main ---------- #
+
+  deploy_prod:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: trigger render deployment
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+          echo "Missing RENDER_DEPLOY_HOOK secret"; exit 1
+          fi
+          curl -fsSL -X POST "$RENDER_DEPLOY_HOOK"
+          echo "Deploy triggered on Render"
