@@ -41,7 +41,10 @@ app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 
 // Security middleware
 app.use(xss());
-app.use(mongoSanitize());
+
+// Security middleware
+// app.use(mongoSanitize()); // Temporarily disabled due to Express 5.x compatibility
+
 app.use(hpp());
 
 app.use("/", (request, response, next) => {
@@ -51,9 +54,9 @@ app.use("/", (request, response, next) => {
   next();
 });
 
-/* app.get("/", (response, next) => {
+app.get("/", (request, response, next) => {
   successResponse(200, "application is running", response);
-}); */
+});
 
 app.use("/fin-tracker/v1", indexRouter);
 

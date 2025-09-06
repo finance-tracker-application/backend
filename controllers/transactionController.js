@@ -1,6 +1,6 @@
-import catchAsyncFunction from "../utils/catchAsyncFunction";
-import Transaction from "../models/Transaction";
-import User from "../models/User";
+import catchAsyncFunction from "../utils/catchAsyncFunction.js";
+import Transaction from "../models/Transaction.js";
+import User from "../models/User.js";
 
 const createTransaction = catchAsyncFunction(
   async (request, response, next) => {
