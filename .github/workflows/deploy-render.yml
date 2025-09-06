@@ -32,7 +32,8 @@ jobs:
         run: npm ci
 
       - name: create .env file
-        run: cat > .env << 'EOF'
+        run: |
+          cat > .env << 'EOF'
           PORT=${{ secrets.PORT }}
           MONGOdb=${{ secrets.MONGODB }}
           testMONGOdb=${{ secrets.TEST_MONGODB }}
