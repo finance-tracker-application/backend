@@ -51,9 +51,9 @@ app.use("/", (request, response, next) => {
   next();
 });
 
-app.get("/", (response, next) => {
+/* app.get("/", (response, next) => {
   successResponse(200, "application is running", response);
-});
+}); */
 
 app.use("/fin-tracker/v1", indexRouter);
 

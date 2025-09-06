@@ -1,3 +1,4 @@
+// tests/app.test.js
 import request from "supertest";
 import app from "../app.js";
 import mongoose from "mongoose";
@@ -22,7 +23,7 @@ describe("Start the app and check if running", () => {
 });
 
 describe("testing /fin-tracker/v1/auth/ endpoint", () => {
-  it("Run POST , create a new user ", async () => {
+  it("Run POST , create a new user", async () => {
     const response = await request(app)
       .post("/fin-tracker/v1/auth/signup")
       .send({
