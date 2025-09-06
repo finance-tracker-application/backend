@@ -20,7 +20,6 @@ authRouter
     authUtils.generateJWTToken
   );
 
-
 authRouter.route("/forgotPassword").post(userAuthController.forgotPassword);
 
 authRouter
@@ -30,6 +29,5 @@ authRouter
 authRouter
   .route("/logout")
   .post(authUtils.verifyJWTToken, userAuthController.logoutController);
-
 
 export default authRouter;

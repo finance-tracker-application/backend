@@ -64,7 +64,6 @@ const loginController = catchAsyncFunction(async (request, response, next) => {
   findUser.password = undefined;
   request.body = { ...findUser.toObject(), refreshToken };
 
-
   next();
 });
 
@@ -136,5 +135,4 @@ export default {
   forgotPassword,
   resetPassword,
   logoutController,
-
 };
