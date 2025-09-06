@@ -6,6 +6,7 @@ import xss from "xss-clean";
 import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
 import bodyParser from "body-parser";
+import slowDown from "express-slow-down";
 
 import dotenv from "dotenv";
 
@@ -13,50 +14,35 @@ import globalErrorHandler from "./utils/globalErrorhandler.js";
 import AppError from "./utils/AppError.js";
 import successResponse from "./utils/success-response.js";
 import indexRouter from "./routes/index-route.js";
+import { corsOptions, securityConfig } from "./config/security.js";
 
 dotenv.config();
-//creating the cors configuration for cors
-const allowedOriginString = process.env.allowedorigin;
 
-const allowedOrigins = allowedOriginString
-  ? allowedOriginString.split(",")
-  : [];
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (allowedOrigins.includes(origin) || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: "GET,PUT,PATCH,POST,DELETE",
-  preflightContinue: false,
-  optionsSuccessStatus: 204,
-};
+const app = express();
 
-const app = express(); //creating the express of the backend application
+// Enhanced CORS configuration
+app.use(cors(corsOptions));
 
-app.use(cors(corsOptions)); // to enables cors
+// Enhanced security middleware
+app.use(helmet(securityConfig.helmetConfig));
 
-//rate limiting
-const rateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many requests, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Rate limiting
+app.use(securityConfig.generalLimiter);
 
-app.use(rateLimiter);
+// Speed limiting
+app.use(securityConfig.speedLimiter);
 
-app.use(express.json()); //to have the data to be accepted as json right
+// Strict rate limiting for auth routes
+app.use("/fin-tracker/v1/auth", securityConfig.authLimiter);
 
-app.use(helmet());
+// Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
+
+// Security middleware
 app.use(xss());
 app.use(mongoSanitize());
 app.use(hpp());
-// Use bodyParser middleware for parsing URL-encoded data
-app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/", (request, response, next) => {
   const apiRequestTime = new Date();
