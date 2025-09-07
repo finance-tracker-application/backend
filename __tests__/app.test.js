@@ -2,6 +2,8 @@
 import request from "supertest";
 import mongoose from "mongoose";
 import app from "../app.js"; // IMPORTANT: app.js must export only the Express app, not app.listen()
+import dotenv from "dotenv";
+dotenv.config({ path: ".env" });
 
 let testUser;
 let userName = `testuser2701`;
