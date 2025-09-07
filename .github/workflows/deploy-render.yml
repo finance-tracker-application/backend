@@ -54,6 +54,7 @@ jobs:
           name: workspace
           path: |
             .
+            .env
             !node_modules/.cache
 
       # ---------------- creating the lint and the build ---------------- #
@@ -78,7 +79,32 @@ jobs:
 
       - name: run lint
         working-directory: temp/build
-        run: npm run lint
+        run:
+          npm run lint
+
+          # ---------------- creating the lint and the build ---------------- #
+  test_script:
+    needs: build_Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: donwload repo code
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: temp/test
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+
+      - name: install dependencies
+        working-directory: temp/build
+        run: npm ci
+
+      - name: run test script
+        working-directory: temp/build
+        run: npx jest
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
