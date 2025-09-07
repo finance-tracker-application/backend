@@ -99,11 +99,11 @@ jobs:
           node-version: ${{env.NODE_VERSION}}
 
       - name: install dependencies
-        working-directory: temp/build
+        working-directory: temp/test
         run: npm ci
 
       - name: run test script
-        working-directory: temp/build
+        working-directory: temp/test
         run: npx jest
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
