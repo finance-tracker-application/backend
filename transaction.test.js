@@ -5,17 +5,22 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import Transaction from "../models/Transaction.js";
 
+let testUser;
+let userName = `testuser2701`;
+let email = `test_${Date.now()}@example.com`;
+
 beforeAll(async () => {
-  await mongoose.connect(process.env.testMONGOdb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  // connect to test database
+  if (!process.env.testMONGOdb) {
+    throw new Error("❌ Missing testMONGOdb environment variable");
+  }
+  await mongoose.connect(process.env.testMONGOdb);
 });
 
 afterAll(async () => {
+  await mongoose.connection.dropDatabase(); // clear test data (optional)
   await mongoose.connection.close();
 });
-
 beforeEach(async () => {
   await Transaction.deleteMany({});
   await User.deleteMany({});
