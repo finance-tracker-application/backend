@@ -102,6 +102,24 @@ jobs:
         working-directory: temp/test
         run: npm ci
 
+      - name: create .env file
+        working-directory: temp/test
+        run: |
+          cat > .env << 'EOF'
+          PORT=${{ secrets.PORT }}
+          MONGOdb=${{ secrets.MONGODB }}
+          testMONGOdb=${{ secrets.TESTMONGODB }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          secret=${{ secrets.SECRET }}
+          expirationOption=${{ secrets.EXPIRATIONOPTION }}
+          allowedorigin=${{ secrets.ALLOWEDORIGIN }}
+          gmailPassword=${{ secrets.GMAILPASSWORD }}
+          gmailUser=${{ secrets.GMAILUSER }}
+          applicationUrl=${{ secrets.APPLICATIONURL }}
+          EOF
+
       - name: run test script
         working-directory: temp/test
         run: npx jest
