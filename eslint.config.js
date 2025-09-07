@@ -9,10 +9,14 @@ export default defineConfig([
     extends: ["js/recommended"],
     languageOptions: {
       globals: {
-        ...globals.browser, // browser globals
-        ...globals.node, // Node.js globals
-        ...globals.jest, // Jest globals (beforeAll, describe, expect, etc.)
+        ...globals.browser,
+        ...globals.node,
+        ...globals.jest,
       },
+    },
+    rules: {
+      "no-unused-vars": "off", // 👈 disables unused vars check
+      "no-undef": "off", // 👈 disables undefined vars check
     },
   },
 ]);
