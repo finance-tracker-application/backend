@@ -15,8 +15,8 @@ env:
   RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
 
 jobs:
-  # ------------- CI: install, (optional) lint/test/build ---------------- #
-  ci:
+  # ---------------- Setup + Install ---------------- #
+  setup_node:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -28,7 +28,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: install
+      - name: install from package.json
         run: npm ci
 
       - name: create .env file
@@ -48,25 +48,45 @@ jobs:
           applicationUrl=${{ secrets.APPLICATION_URL }}
           EOF
 
-      - name: Build (if present)
-        run: |
-          if npm run | grep -q "^  build"; then
-            npm run build
-          else
-            echo "No build script, skipping."
-          fi
-      - name: run eslint
-        run: |
-          if npm run | grep -q "lint"; then
-            npm run lint
-          else
-            echo "No lint script, skipping."
-          fi
+      - name: Upload workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            !node_modules/.cache
+
+      # ---------------- creating the lint and the build ---------------- #
+  build_Lint:
+    needs: setup_node
+    runs-on: ubuntu-latest
+    steps:
+      - name: donwload repo code
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: temp/build
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+
+      - name: install dependencies
+        working-directory: temp/build
+        run: npm ci
+      - name: run build
+        working-directory: temp/build
+        run: npm run build
+
+      - name: run lint
+        working-directory: temp/build
+        run: npm run lint
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
   deploy_prod:
-    needs: ci
+    needs: build_Lint
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
