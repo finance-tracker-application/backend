@@ -57,8 +57,8 @@ jobs:
           fi
       - name: run eslint
         run: |
-          if npm run | grep -q "^ lint"; then
-             npm run lint
+          if npm run | grep -q "^lint"; then
+            npm run lint
           else
             echo "No lint script, skipping."
           fi
