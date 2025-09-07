@@ -75,9 +75,6 @@ jobs:
       - name: install dependencies
         working-directory: temp/build
         run: npm ci
-      - name: run build
-        working-directory: temp/build
-        run: npm run build
 
       - name: run lint
         working-directory: temp/build
