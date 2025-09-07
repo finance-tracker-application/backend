@@ -36,16 +36,16 @@ jobs:
           cat > .env << 'EOF'
           PORT=${{ secrets.PORT }}
           MONGOdb=${{ secrets.MONGODB }}
-          testMONGOdb=${{ secrets.TEST_MONGODB }}
+          testMONGOdb=${{ secrets.TESTMONGODB }}
           DB_USER=${{ secrets.DB_USER }}
           DB_PASS=${{ secrets.DB_PASS }}
           DB_NAME=${{ secrets.DB_NAME }}
           secret=${{ secrets.SECRET }}
-          expirationOption=${{ secrets.EXPIRATION_OPTION }}
+          expirationOption=${{ secrets.EXPIRATIONOPTION }}
           allowedorigin=${{ secrets.ALLOWEDORIGIN }}
-          gmailPassword=${{ secrets.GMAIL_PASSWORD }}
-          gmailUser=${{ secrets.GMAIL_USER }}
-          applicationUrl=${{ secrets.APPLICATION_URL }}
+          gmailPassword=${{ secrets.GMAILPASSWORD }}
+          gmailUser=${{ secrets.GMAILUSER }}
+          applicationUrl=${{ secrets.APPLICATIONURL }}
           EOF
 
       - name: Upload workspace
