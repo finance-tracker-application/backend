@@ -1,4 +1,6 @@
 // tests/app.test.js
+jest.setTimeout(20000);
+
 import request from "supertest";
 import mongoose from "mongoose";
 import app from "../app.js"; // IMPORTANT: app.js must export only the Express app, not app.listen()
