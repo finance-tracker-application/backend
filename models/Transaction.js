@@ -29,8 +29,8 @@ const transactionSchema = new mongoose.Schema(
     },
 
     // (Optional) denormalized snapshot to avoid populate on common reads
-    categoryName: { type: String },
-    categoryType: { type: String, enum: ["income", "expense"] },
+    /*     categoryName: { type: String },
+    categoryType: { type: String, enum: ["income", "expense"] }, */
 
     amount: {
       type: Number,
