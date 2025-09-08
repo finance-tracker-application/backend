@@ -1,9 +1,26 @@
-import mongoose from 'mongoose';
+// models/Category.js
+import mongoose from "mongoose";
 
-const categorySchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  type: { type: String, enum: ['income', 'expense'], required: true },
-});
+const CategorySchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    name: { type: String, required: true, trim: true },
+    type: { type: String, enum: ["income", "expense"], required: true },
+    color: String,
+    icon: String,
+    archived: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
 
-const Category = mongoose.model('Category', categorySchema);
-export default Category;
+// Each user cannot have duplicate category names
+CategorySchema.index({ userId: 1, name: 1 }, { unique: true });
+
+const category = mongoose.model("Category", CategorySchema);
+
+export default category;
