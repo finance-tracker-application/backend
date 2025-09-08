@@ -15,12 +15,12 @@ let testUser;
 let userName = `testuser2701`;
 let email = `test_${Date.now()}@example.com`;
 
-console.log("process.env.testMONGOdb", process.env.testMONGOdb);
+const testMONGOdb = `mongodb://localhost:27017/testfin-trackerDB`;
 beforeAll(async () => {
-  if (!process.env.testMONGOdb) {
+  if (!testMONGOdb) {
     throw new Error("❌ Missing testMONGOdb environment variable");
   }
-  await mongoose.connect(process.env.testMONGOdb, {
+  await mongoose.connect(testMONGOdb, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
