@@ -137,17 +137,22 @@ jobs:
           pwd
           ls -la
 
-      # ✅ inject test DB URI as an environment variable here
-      - name: run tests
+      - name: run test script
         working-directory: temp/test
         env:
-          NODE_ENV: test
-          testMONGOdb: ${{ secrets.TESTMONGODB }} # <-- ensure the secret name matches exactly
+          PORT: ${{ secrets.PORT }}
+          MONGOdb: ${{ secrets.MONGODB }}
+          testMONGOdb: ${{ secrets.TESTMONGODB }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          secret: ${{ secrets.SECRET }}
+          expirationOption: ${{ secrets.EXPIRATIONOPTION }}
+          allowedorigin: ${{ secrets.ALLOWEDORIGIN }}
+          gmailPassword: ${{ secrets.GMAILPASSWORD }}
+          gmailUser: ${{ secrets.GMAILUSER }}
+          applicationUrl: ${{ secrets.APPLICATIONURL }}
         run: npx jest --runInBand --detectOpenHandles
-
-      #- name: run test script
-      #  working-directory: temp/test
-      # run: npx jest
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
