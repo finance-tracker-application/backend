@@ -15,7 +15,7 @@ let testUser;
 let userName = `testuser2701`;
 let email = `test_${Date.now()}@example.com`;
 
-const testMONGOdb = `mongodb://localhost:27017/testfin-trackerDB`;
+const testMONGOdb = `mongodb://127.0.0.1:27017/testfin-trackerDB`;
 beforeAll(async () => {
   if (!testMONGOdb) {
     throw new Error("❌ Missing testMONGOdb environment variable");
