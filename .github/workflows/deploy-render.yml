@@ -28,7 +28,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+
       - name: install from package.json
+
         run: npm ci
 
       - name: create .env file
@@ -37,6 +39,7 @@ jobs:
           PORT=${{ secrets.PORT }}
           MONGOdb=${{ secrets.MONGODB }}
           testMONGOdb=${{ secrets.TESTMONGODB }}
+
           DB_USER=${{ secrets.DB_USER }}
           DB_PASS=${{ secrets.DB_PASS }}
           DB_NAME=${{ secrets.DB_NAME }}
