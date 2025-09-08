@@ -25,7 +25,8 @@ app.use(cors(corsOptions));
 
 // Enhanced security middleware
 //app.use(helmet(securityConfig.helmetConfig));
-app.use(helmet());
+app.use(helmet(securityConfig.helmetConfig));
+
 // Rate limiting
 app.use(securityConfig.generalLimiter);
 

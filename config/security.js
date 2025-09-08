@@ -1,3 +1,4 @@
+// config/security.js
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
@@ -21,7 +22,11 @@ const cspConfig = {
 // CORS configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = process.env.allowedorigin?.split(",") || [];
+    const allowedOrigins =
+      process.env.allowedorigin
+        ?.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean) || [];
 
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
@@ -40,8 +45,8 @@ const corsOptions = {
 };
 
 // Rate limiting configuration
-const createRateLimit = (windowMs, max, message) => {
-  return rateLimit({
+const createRateLimit = (windowMs, max, message) =>
+  rateLimit({
     windowMs,
     max,
     message: {
@@ -53,25 +58,55 @@ const createRateLimit = (windowMs, max, message) => {
     legacyHeaders: false,
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
-    keyGenerator: (req) => {
-      return req.ip || req.connection.remoteAddress;
-    },
+    keyGenerator: (req) => req.ip || req.connection?.remoteAddress,
   });
-};
 
-// Speed limiting configuration
-const createSpeedLimit = (windowMs, delayAfter, delayMs) => {
+/**
+ * Speed limiting configuration (express-slow-down v2)
+ * - In tests, we noop to avoid noise and flakiness.
+ * - For v2, use a function for delayMs or explicitly validate to suppress warning.
+ */
+const createSpeedLimit = (windowMs, delayAfter, fixedDelayMs) => {
+  if (process.env.NODE_ENV === "test") {
+    // No-op middleware in test runs
+    return (req, _res, next) => next();
+  }
+
+  return slowDown({
+    windowMs,
+    // v2 still accepts delayAfter; library also exposes req.slowDown.limit internally.
+    delayAfter,
+    // New behavior: a constant delay applied after delayAfter is exceeded.
+    // If you prefer the old linear backoff, see the commented block below.
+    delayMs: () => fixedDelayMs,
+
+    // Cap the delay to something sane
+    maxDelayMs: 20000,
+
+    skipSuccessfulRequests: false,
+    skipFailedRequests: false,
+    keyGenerator: (req) => req.ip || req.connection?.remoteAddress,
+
+    // Optional: silence the deprecation warning explicitly
+    validate: { delayMs: false },
+  });
+
+  /*  // If you prefer the OLD behavior (linear growth), use this instead:
   return slowDown({
     windowMs,
     delayAfter,
-    delayMs,
+    delayMs: (used, req) => {
+      const limit = req.slowDown.limit; // internal value
+      const over = Math.max(0, used - limit);
+      return Math.min(over * fixedDelayMs, 20000);
+    },
     maxDelayMs: 20000,
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
-    keyGenerator: (req) => {
-      return req.ip || req.connection.remoteAddress;
-    },
+    keyGenerator: (req) => req.ip || req.connection?.remoteAddress,
+    validate: { delayMs: false },
   });
+  */
 };
 
 // Security middleware configuration
@@ -91,6 +126,7 @@ const securityConfig = {
   ),
 
   // Speed limiting
+  // (windowMs, delayAfter, fixedDelayMs)
   speedLimiter: createSpeedLimit(15 * 60 * 1000, 50, 500),
 
   // Helmet configuration
@@ -111,7 +147,7 @@ const securityConfig = {
     noSniff: true,
     permittedCrossDomainPolicies: { permittedPolicies: "none" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    xssFilter: true,
+    // xssFilter: true, // ❌ deprecated in helmet; remove to avoid warnings
   },
 };
 
