@@ -86,6 +86,17 @@ jobs:
   test_script:
     needs: build_Lint
     runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        # healthcheck so the job waits until Mongo is ready
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
     steps:
       - name: donwload repo code
         uses: actions/download-artifact@v4
