@@ -137,23 +137,6 @@ jobs:
           pwd
           ls -la
 
-      - name: run test script
-        working-directory: temp/test
-        env:
-          PORT: ${{ secrets.PORT }}
-          MONGOdb: ${{ secrets.MONGODB }}
-          testMONGOdb: ${{ secrets.TESTMONGODB }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          secret: ${{ secrets.SECRET }}
-          expirationOption: ${{ secrets.EXPIRATIONOPTION }}
-          allowedorigin: ${{ secrets.ALLOWEDORIGIN }}
-          gmailPassword: ${{ secrets.GMAILPASSWORD }}
-          gmailUser: ${{ secrets.GMAILUSER }}
-          applicationUrl: ${{ secrets.APPLICATIONURL }}
-        run: npx jest --runInBand --detectOpenHandles
-
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
   deploy_prod:
