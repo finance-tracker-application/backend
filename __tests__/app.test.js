@@ -15,6 +15,7 @@ let testUser;
 let userName = `testuser2701`;
 let email = `test_${Date.now()}@example.com`;
 
+console.log("process.env.testMONGOdb", process.env.testMONGOdb);
 beforeAll(async () => {
   if (!process.env.testMONGOdb) {
     throw new Error("❌ Missing testMONGOdb environment variable");
@@ -58,7 +59,7 @@ describe("testing /fin-tracker/v1/auth endpoint", () => {
       .post("/fin-tracker/v1/auth/signup")
       .send(testUser);
 
-    console.log("Signup response:", response.body);
+    //console.log("Signup response:", response.body);
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toHaveProperty("dateTime");
@@ -77,7 +78,7 @@ describe("testing /fin-tracker/v1/auth endpoint", () => {
         password: "Assasinscreed2!",
       });
 
-    console.log("Login response:", response.body);
+    //console.log("Login response:", response.body);
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toHaveProperty("dateTime");
