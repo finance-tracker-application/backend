@@ -15,8 +15,8 @@ env:
   RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
 
 jobs:
-  # ------------- CI: install, (optional) lint/test/build ---------------- #
-  ci:
+  # ---------------- Setup + Install ---------------- #
+  setup_node:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -28,7 +28,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: install
+
+      - name: install from package.json
+
         run: npm ci
 
       - name: create .env file
@@ -36,30 +38,112 @@ jobs:
           cat > .env << 'EOF'
           PORT=${{ secrets.PORT }}
           MONGOdb=${{ secrets.MONGODB }}
-          testMONGOdb=${{ secrets.TEST_MONGODB }}
+          testMONGOdb=${{ secrets.TESTMONGODB }}
+
           DB_USER=${{ secrets.DB_USER }}
           DB_PASS=${{ secrets.DB_PASS }}
           DB_NAME=${{ secrets.DB_NAME }}
           secret=${{ secrets.SECRET }}
-          expirationOption=${{ secrets.EXPIRATION_OPTION }}
+          expirationOption=${{ secrets.EXPIRATIONOPTION }}
           allowedorigin=${{ secrets.ALLOWEDORIGIN }}
-          gmailPassword=${{ secrets.GMAIL_PASSWORD }}
-          gmailUser=${{ secrets.GMAIL_USER }}
-          applicationUrl=${{ secrets.APPLICATION_URL }}
+          gmailPassword=${{ secrets.GMAILPASSWORD }}
+          gmailUser=${{ secrets.GMAILUSER }}
+          applicationUrl=${{ secrets.APPLICATIONURL }}
           EOF
 
-      - name: Build (if present)
+      - name: Upload workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            .env
+            !node_modules/.cache
+
+      # ---------------- creating the lint and the build ---------------- #
+  build_Lint:
+    needs: setup_node
+    runs-on: ubuntu-latest
+    steps:
+      - name: donwload repo code
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: temp/build
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+
+      - name: install dependencies
+        working-directory: temp/build
+        run: npm ci
+
+      - name: run lint
+        working-directory: temp/build
+        run:
+          npm run lint
+
+          # ---------------- creating the lint and the build ---------------- #
+  test_script:
+    needs: build_Lint
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        # healthcheck so the job waits until Mongo is ready
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: donwload repo code
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: temp/test
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+
+      - name: install dependencies
+        working-directory: temp/test
+        run: npm ci
+
+      - name: create .env file
+        working-directory: temp/test
         run: |
-          if npm run | grep -q "^  build"; then
-            npm run build
-          else
-            echo "No build script, skipping."
-          fi
+          cat > .env << 'EOF'
+          PORT=${{ secrets.PORT }}
+          MONGOdb=${{ secrets.MONGODB }}
+          testMONGOdb=${{ secrets.TESTMONGODB }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          secret=${{ secrets.SECRET }}
+          expirationOption=${{ secrets.EXPIRATIONOPTION }}
+          allowedorigin=${{ secrets.ALLOWEDORIGIN }}
+          gmailPassword=${{ secrets.GMAILPASSWORD }}
+          gmailUser=${{ secrets.GMAILUSER }}
+          applicationUrl=${{ secrets.APPLICATIONURL }}
+          EOF
+
+      - name: debug cwd
+        working-directory: temp/test
+        run: |
+          pwd
+          ls -la
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
   deploy_prod:
-    needs: ci
+    needs: test_script
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

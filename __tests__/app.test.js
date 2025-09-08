@@ -1,16 +1,36 @@
-// tests/app.test.js
+// __tests__/app.test.js
 import request from "supertest";
-import app from "../app.js";
 import mongoose from "mongoose";
+import app from "../app.js"; // IMPORTANT: app.js must export only the Express app, not app.listen()
+import path from "path";
+import dotenv from "dotenv";
 
+// ✅ Load environment variables from .env in project root
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+// ✅ Increase Jest timeout (default 5s is too short in CI)
+jest.setTimeout(20000);
+
+let testUser;
+let userName = `testuser2701`;
+let email = `test_${Date.now()}@example.com`;
+
+const testMONGOdb = `mongodb://127.0.0.1:27017/testfin-trackerDB`;
 beforeAll(async () => {
-  await mongoose.connect(process.env.testMONGOdb, {
+  if (!testMONGOdb) {
+    throw new Error("❌ Missing testMONGOdb environment variable");
+  }
+  await mongoose.connect(testMONGOdb, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
 });
 
 afterAll(async () => {
+  // Drop only in test DB to avoid wiping real data
+  if (process.env.NODE_ENV === "test") {
+    await mongoose.connection.dropDatabase();
+  }
   await mongoose.connection.close();
 });
 
@@ -18,27 +38,35 @@ describe("Start the app and check if running", () => {
   it("should return 200 OK and a running message inside data", async () => {
     const response = await request(app).get("/");
     expect(response.statusCode).toBe(200);
+    expect(response.body).toHaveProperty("data");
     expect(response.body.data).toMatch(/application is running/i);
   });
 });
 
-describe("testing /fin-tracker/v1/auth/ endpoint", () => {
-  it("Run POST , create a new user", async () => {
+describe("testing /fin-tracker/v1/auth endpoint", () => {
+  beforeAll(() => {
+    testUser = {
+      name: "Test User",
+      userName,
+      email,
+      role: "user",
+      password: "Assasinscreed2!",
+    };
+  });
+
+  it("Run POST, create a new user", async () => {
     const response = await request(app)
       .post("/fin-tracker/v1/auth/signup")
-      .send({
-        name: "Test user",
-        userName: "testuser123",
-        email: `test${Date.now()}@example.com`,
-        password: "TestPassword123",
-      });
+      .send(testUser);
+
+    //console.log("Signup response:", response.body);
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toHaveProperty("dateTime");
     expect(response.body).toHaveProperty("data");
-    expect(response.body.data).toHaveProperty("name", "Test user");
-    expect(response.body.data).toHaveProperty("userName", "testuser123");
-    expect(response.body.data).toHaveProperty("email");
+    expect(response.body.data).toHaveProperty("name", "Test User");
+    expect(response.body.data).toHaveProperty("userName", userName);
+    expect(response.body.data).toHaveProperty("email", email);
     expect(response.body.data).toHaveProperty("_id");
   }, 10000);
 
@@ -46,9 +74,11 @@ describe("testing /fin-tracker/v1/auth/ endpoint", () => {
     const response = await request(app)
       .post("/fin-tracker/v1/auth/login")
       .send({
-        userName: "testuser123",
-        password: "TestPassword123",
+        userName,
+        password: "Assasinscreed2!",
       });
+
+    //console.log("Login response:", response.body);
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toHaveProperty("dateTime");
