@@ -120,9 +120,23 @@ jobs:
           applicationUrl=${{ secrets.APPLICATIONURL }}
           EOF
 
-      - name: run test script
+      - name: debug cwd
         working-directory: temp/test
-        run: npx jest
+        run: |
+          pwd
+          ls -la
+
+      # ✅ inject test DB URI as an environment variable here
+      - name: run tests
+        working-directory: temp/test
+        env:
+          NODE_ENV: test
+          testMONGOdb: ${{ secrets.TESTMONGODB }} # <-- ensure the secret name matches exactly
+        run: npx jest --runInBand --detectOpenHandles
+
+      #- name: run test script
+      #  working-directory: temp/test
+      # run: npx jest
 
   # ------------- Deploy to Render only after CI passes on main ---------- #
 
