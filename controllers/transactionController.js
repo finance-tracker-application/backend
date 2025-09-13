@@ -174,7 +174,12 @@ const getAllTransactions = catchAsyncFunction(
 
     // Get total count for pagination
     const total = await Transaction.countDocuments(filter);
+    console.log(total);
 
+    // validation when no data found
+    if (total <= 0) {
+      return next(new AppError(400, `No data found and present`));
+    }
     // Calculate summary statistics
     const summary = await Transaction.aggregate([
       { $match: filter },

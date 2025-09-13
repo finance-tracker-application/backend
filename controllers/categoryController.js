@@ -1,7 +1,8 @@
 import catchAsyncFunction from "../utils/catchAsyncFunction.js";
-import Transaction from "../models/Category.js";
+import Category from "../models/Category.js";
 import User from "../models/User.js";
 import AppError from "../utils/AppError.js";
+import requestFunction from "../utils/requestFunction.js";
 import successResponse from "../utils/success-response.js";
 import category from "../models/Category.js";
 
@@ -46,12 +47,18 @@ const createCategory = catchAsyncFunction(async (request, response, next) => {
   });
 });
 
-const getCategory = catchAsyncFunction(async (request, response, next) => {
+const listCategories = catchAsyncFunction(async (request, response, next) => {
   const userId = request?.token?.id;
 
   //validation
   if (!userId) {
     return next(new AppError(401, "Unauthorized"));
+  }
+
+  const findUser = await User.findOne({ _id: userId });
+
+  if (!findUser) {
+    return next(new AppError(400, "User not found"));
   }
 
   const {
@@ -68,17 +75,17 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const limitNum = parseInt(limit);
 
-  if (!["income", "expense"].includes(type)) {
+  if (type && !["income", "expense"].includes(type)) {
     return next(new AppError(400, `The type does not exist`));
   }
 
-  filter.type = type;
-
-  if (includeArchived) {
-    return next(new AppError(400, `Hidden category wont be shown`));
+  if (type) {
+    filter.type = type;
   }
 
-  filter.archived = includeArchived;
+  if (!includeArchived) {
+    filter.archived = false;
+  }
 
   // Add search filter (searches in description and tags)
   if (search) {
@@ -86,17 +93,7 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
   }
 
   // Build sort object
-  let sortObj = {};
-  if (sort) {
-    const sortFields = sort.split(",");
-    sortFields.forEach((sortField) => {
-      if (sortField.startsWith("-")) {
-        sortObj[sortField.substring(1)] = -1;
-      } else {
-        sortObj[sortField] = 1;
-      }
-    });
-  }
+  const sortObj = requestFunction.sortObj(sort);
 
   const getAllCategory = await category
     .find(filter)
@@ -106,15 +103,148 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
     .exec();
 
   //count of the category for pagination
-  const countCategory = await category.countDocuments({ filter });
+  const countCategory = await category.countDocuments(filter);
 
-  return response.status(201).json({
+  return response.status(200).json({
     status: "success",
-    data: { total: countCategory, ...getAllCategory },
+    data: { total: countCategory, categories: getAllCategory },
   });
+});
+
+const getCategory = catchAsyncFunction(async (request, response, next) => {
+  const userId = request?.token?.id;
+  const { id } = request.params;
+
+  //validation
+  if (!userId) {
+    return next(new AppError(401, "Unauthorized"));
+  }
+
+  if (!id) {
+    return next(new AppError(400, "Category ID is required"));
+  }
+
+  const findUser = await User.findOne({ _id: userId });
+
+  if (!findUser) {
+    return next(new AppError(400, "User not found"));
+  }
+
+  const foundCategory = await category.findOne({
+    _id: id,
+    userId: findUser.userId,
+  });
+
+  if (!foundCategory) {
+    return next(new AppError(404, "Category not found"));
+  }
+
+  return response.status(200).json({
+    status: "success",
+    data: foundCategory,
+  });
+});
+
+const updateCategory = catchAsyncFunction(async (request, response, next) => {
+  const userId = request?.token?.id;
+  const { id } = request.params;
+  const { body } = request;
+
+  //validation
+  if (!userId) {
+    return next(new AppError(401, "Unauthorized"));
+  }
+
+  if (!id) {
+    return next(new AppError(400, "Category ID is required"));
+  }
+
+  const findUser = await User.findOne({ _id: userId });
+
+  if (!findUser) {
+    return next(new AppError(400, "User not found"));
+  }
+
+  // Check if category exists
+  const existingCategory = await category.findOne({
+    _id: id,
+    userId: findUser.userId,
+  });
+
+  if (!existingCategory) {
+    return next(new AppError(404, "Category not found"));
+  }
+
+  // Validate type if provided
+  if (body.type && !["income", "expense"].includes(body.type)) {
+    return next(new AppError(400, "Type must be either 'income' or 'expense'"));
+  }
+
+  // Check for duplicate name if name is being updated
+  if (body.name && body.name !== existingCategory.name) {
+    const duplicateCategory = await category.findOne({
+      userId: findUser.userId,
+      name: body.name,
+      _id: { $ne: id },
+    });
+
+    if (duplicateCategory) {
+      return next(new AppError(409, "Category with this name already exists"));
+    }
+  }
+
+  // Update category
+  const updatedCategory = await category.findByIdAndUpdate(
+    id,
+    { ...body },
+    { new: true, runValidators: true }
+  );
+
+  return response.status(200).json({
+    status: "success",
+    data: updatedCategory,
+  });
+});
+
+const archiveCategory = catchAsyncFunction(async (request, response, next) => {
+  const userId = request?.token?.id;
+  const { id } = request.params;
+
+  //validation
+  if (!userId) {
+    return next(new AppError(401, "Unauthorized"));
+  }
+
+  if (!id) {
+    return next(new AppError(400, "Category ID is required"));
+  }
+
+  const findUser = await User.findOne({ _id: userId });
+
+  if (!findUser) {
+    return next(new AppError(400, "User not found"));
+  }
+
+  // Check if category exists
+  const existingCategory = await category.findOne({
+    _id: id,
+    userId: findUser.userId,
+  });
+
+  if (!existingCategory) {
+    return next(new AppError(404, "Category not found"));
+  }
+
+  // Archive the category
+  await category.findByIdAndUpdate(id, { archived: true });
+
+  return response.status(204).send();
 });
 
 export default {
   createCategory,
+  listCategories,
   getCategory,
+  updateCategory,
+  archiveCategory,
 };
