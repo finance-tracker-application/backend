@@ -11,6 +11,12 @@ categoryRouter.use(authUtils.verifyJWTToken);
 categoryRouter
   .route("/")
   .post(categoryController.createCategory)
-  .get(categoryController.getCategory);
+  .get(categoryController.listCategories);
+
+categoryRouter
+  .route("/:id")
+  .get(categoryController.getCategory)
+  .patch(categoryController.updateCategory)
+  .delete(categoryController.archiveCategory);
 
 export default categoryRouter;

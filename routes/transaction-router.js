@@ -9,8 +9,8 @@ transactionRouter.use(authUtils.verifyJWTToken);
 
 transactionRouter
   .route("/")
-  .post(transactionController.createTransaction)
-  .get(validateTransaction, transactionController.getAllTransactions);
+  .post(validateTransaction, transactionController.createTransaction)
+  .get(transactionController.getAllTransactions);
 
 transactionRouter
   .route("/:id")
