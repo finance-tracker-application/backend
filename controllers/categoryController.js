@@ -34,7 +34,7 @@ const createCategory = catchAsyncFunction(async (request, response, next) => {
   const { token, ...bodyPayload } = body;
 
   const categoryBody = {
-    userId: fetchUser.userId,
+    userId: fetchUser._id, // updated from userId to _id
     ...bodyPayload,
   };
 
@@ -107,7 +107,17 @@ const listCategories = catchAsyncFunction(async (request, response, next) => {
 
   return response.status(200).json({
     status: "success",
-    data: { total: countCategory, categories: getAllCategory },
+    data: {
+      categories: getAllCategory,
+      pagination: {
+        page: parseInt(page),
+        limit: limitNum,
+        total: countCategory,
+        pages: Math.ceil(countCategory / limitNum),
+        hasNext: skip + limitNum < countCategory,
+        hasPrev: page > 1,
+      },
+    },
   });
 });
 
@@ -132,7 +142,7 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
 
   const foundCategory = await category.findOne({
     _id: id,
-    userId: findUser.userId,
+    userId: findUser._id,
   });
 
   if (!foundCategory) {

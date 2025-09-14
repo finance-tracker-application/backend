@@ -3,6 +3,7 @@ import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import AppError from "../utils/AppError.js";
 import successResponse from "../utils/success-response.js";
+import category from "../models/Category.js";
 
 const createTransaction = catchAsyncFunction(
   async (request, response, next) => {
@@ -37,10 +38,16 @@ const createTransaction = catchAsyncFunction(
       );
     }
 
-    if (!body.category || typeof body.category !== "string") {
+    if (!body.categoryId) {
       return next(
         new AppError(400, "Category is required and must be a string")
       );
+    }
+
+    const getCategory = await category.findOne({ _id: categoryId });
+
+    if (!getCategory) {
+      return next(new AppError(400, "Category is not found"));
     }
 
     // note validation (optional)

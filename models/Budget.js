@@ -18,31 +18,15 @@ const budgetSchema = new mongoose.Schema(
       default: "monthly",
     },
     period: {
-      startDate: {
-        type: Date,
-        required: true,
-      },
-      endDate: {
-        type: Date,
-        required: true,
-      },
+      startDate: { type: Date, required: true },
+      endDate: { type: Date, required: true },
     },
     categories: [
       {
-        category: {
-          type: String,
+        categoryId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Category",
           required: true,
-          enum: [
-            "food",
-            "transport",
-            "entertainment",
-            "shopping",
-            "bills",
-            "health",
-            "education",
-            "travel",
-            "other_expense",
-          ],
         },
         allocatedAmount: {
           type: Number,
@@ -76,35 +60,13 @@ const budgetSchema = new mongoose.Schema(
       default: "active",
     },
     notifications: {
-      enabled: {
-        type: Boolean,
-        default: true,
-      },
-      threshold: {
-        type: Number,
-        default: 80, // Percentage
-        min: 0,
-        max: 100,
-      },
-      emailAlerts: {
-        type: Boolean,
-        default: true,
-      },
-      pushAlerts: {
-        type: Boolean,
-        default: true,
-      },
+      enabled: { type: Boolean, default: true },
+      threshold: { type: Number, default: 80, min: 0, max: 100 },
+      emailAlerts: { type: Boolean, default: true },
+      pushAlerts: { type: Boolean, default: true },
     },
-    tags: [
-      {
-        type: String,
-        maxlength: 20,
-      },
-    ],
-    notes: {
-      type: String,
-      maxlength: 500,
-    },
+    tags: [{ type: String, maxlength: 20 }],
+    notes: { type: String, maxlength: 500 },
   },
   {
     timestamps: true,
@@ -113,26 +75,19 @@ const budgetSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-budgetSchema.index({ userId: 1, "period.startDate": -1 });
-budgetSchema.index({ userId: 1, status: 1 });
-
-// Virtual for total spent amount
+// ---------------- Virtuals ----------------
 budgetSchema.virtual("totalSpent").get(function () {
   return this.categories.reduce((total, cat) => total + cat.spentAmount, 0);
 });
 
-// Virtual for remaining budget
 budgetSchema.virtual("remainingBudget").get(function () {
   return this.totalBudget - this.totalSpent;
 });
 
-// Virtual for budget utilization percentage
 budgetSchema.virtual("utilizationPercentage").get(function () {
   return this.totalBudget > 0 ? (this.totalSpent / this.totalBudget) * 100 : 0;
 });
 
-// Virtual for budget status
 budgetSchema.virtual("budgetStatus").get(function () {
   const percentage = this.utilizationPercentage;
   if (percentage >= 100) return "exceeded";
@@ -141,7 +96,7 @@ budgetSchema.virtual("budgetStatus").get(function () {
   return "good";
 });
 
-// Method to update spent amounts based on transactions
+// ---------------- Methods ----------------
 budgetSchema.methods.updateSpentAmounts = async function () {
   const Transaction = mongoose.model("Transaction");
 
@@ -157,10 +112,10 @@ budgetSchema.methods.updateSpentAmounts = async function () {
     cat.spentAmount = 0;
   });
 
-  // Calculate spent amounts from transactions
+  // Sum spent amounts by categoryId
   transactions.forEach((transaction) => {
     const category = this.categories.find(
-      (cat) => cat.category === transaction.category
+      (cat) => cat.categoryId.toString() === transaction.categoryId.toString()
     );
     if (category) {
       category.spentAmount += transaction.amount;
@@ -171,18 +126,18 @@ budgetSchema.methods.updateSpentAmounts = async function () {
   return this;
 };
 
-// Method to check if budget is exceeded
 budgetSchema.methods.isExceeded = function () {
   return this.totalSpent > this.totalBudget;
 };
 
-// Method to get category utilization
-budgetSchema.methods.getCategoryUtilization = function (categoryName) {
-  const category = this.categories.find((cat) => cat.category === categoryName);
+budgetSchema.methods.getCategoryUtilization = function (categoryId) {
+  const category = this.categories.find(
+    (cat) => cat.categoryId.toString() === categoryId.toString()
+  );
   if (!category) return null;
 
   return {
-    category: category.category,
+    categoryId: category.categoryId,
     allocated: category.allocatedAmount,
     spent: category.spentAmount,
     remaining: category.allocatedAmount - category.spentAmount,
@@ -193,20 +148,17 @@ budgetSchema.methods.getCategoryUtilization = function (categoryName) {
   };
 };
 
-// Pre-save middleware to validate budget
+// ---------------- Pre-save middleware ----------------
 budgetSchema.pre("save", function (next) {
-  // Ensure end date is after start date
   if (this.period.endDate <= this.period.startDate) {
     return next(new Error("End date must be after start date"));
   }
 
-  // Calculate total budget from categories
   const calculatedTotal = this.categories.reduce(
     (total, cat) => total + cat.allocatedAmount,
     0
   );
 
-  // Update total budget if not set or different
   if (!this.totalBudget || this.totalBudget !== calculatedTotal) {
     this.totalBudget = calculatedTotal;
   }
