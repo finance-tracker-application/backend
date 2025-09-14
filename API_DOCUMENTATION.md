@@ -1,592 +1,243 @@
-# Fin Tracker API Documentation
-
-## Overview
-
-A comprehensive financial tracking API with advanced security features, transaction management, and budget planning capabilities.
-
-## Base URL
-
-```
-http://localhost:9000/fin-tracker/v1
-```
-
-## Authentication
-
-All protected endpoints require a JWT token in the Authorization header:
-
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-## Security Features
-
-- **CSP (Content Security Policy)**: Prevents XSS attacks
-- **CORS**: Configurable cross-origin resource sharing
-- **Rate Limiting**: 100 requests per 15 minutes (general), 5 requests per 15 minutes (auth)
-- **Speed Limiting**: Slows down requests after 50 requests per 15 minutes
-- **Helmet**: Security headers
-- **XSS Protection**: Cross-site scripting protection
-- **MongoDB Sanitization**: Prevents NoSQL injection
-- **HPP Protection**: HTTP Parameter Pollution protection
+Got it 👍 — let’s extend the **Budget API requirements** to include not only the **endpoint contracts**, but also **what each API should _do_** under the hood: logic, acceptance criteria, guards, and edge cases. This will give you a **dev-ready requirements doc** that you (or your team) can implement.
 
 ---
 
-## Authentication Endpoints
+# 📌 Budget API Requirements
 
-### POST `/auth/signup`
+## 1. **POST `/budgets`** — Create a budget
 
-Register a new user account.
+### What it should do
 
-**Request Body:**
+- Validate input:
 
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "userName": "johndoe",
-  "password": "Password123"
-}
-```
+  - `name` is required.
+  - `period.startDate < period.endDate`.
+  - `categories[]` contains no duplicate `categoryId`.
+  - Each `categoryId` exists, belongs to the user, and `archived=false`.
 
-**Response:**
+- Auto-calculate:
 
-```json
-{
-  "status": "success",
-  "data": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "userName": "johndoe",
-    "role": "user",
-    "createdAt": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
+  - `totalBudget = sum(allocatedAmount)`.
 
-### POST `/auth/login`
+- Save new budget with `status="active"`.
+- Return created budget.
 
-Authenticate user and receive tokens.
+### Acceptance Criteria
 
-**Request Body:**
-
-```json
-{
-  "userName": "johndoe",
-  "password": "Password123"
-}
-```
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "userName": "johndoe",
-    "role": "user",
-    "token": "jwt_token_here",
-    "refreshToken": "refresh_token_here"
-  }
-}
-```
-
-### POST `/auth/refresh`
-
-Get new access token using refresh token.
-
-**Request Body:**
-
-```json
-{
-  "refreshToken": "your_refresh_token"
-}
-```
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "accessToken": "new_jwt_token",
-    "refreshToken": "new_refresh_token"
-  }
-}
-```
-
-### POST `/auth/logout`
-
-Logout user and invalidate refresh token.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "message": "Logged out successfully"
-  }
-}
-```
+- ✅ `201` if valid.
+- ❌ `400` if invalid period or bad input.
+- ❌ `422` if duplicate categories.
+- ❌ `400` if category invalid/archived.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## User Management Endpoints
+## 2. **GET `/budgets`** — List budgets
 
-### GET `/users/profile`
+### What it should do
 
-Get current user profile.
+- Fetch all budgets for `req.user._id`.
+- Apply filters:
 
-**Headers:** `Authorization: Bearer <token>`
+  - `status=active|completed|cancelled`
+  - `type=monthly|yearly|custom`
 
-### PUT `/users/profile`
+- Apply pagination (default: page=1, limit=10).
+- Sort by `period.startDate` DESC.
+- Return with metadata: total count, total pages.
 
-Update user profile.
+### Acceptance Criteria
 
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-
-```json
-{
-  "name": "John Updated",
-  "email": "john.updated@example.com",
-  "userName": "johnupdated"
-}
-```
-
-### DELETE `/users/profile`
-
-Delete user account.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### PUT `/users/change-password`
-
-Change user password.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-
-```json
-{
-  "currentPassword": "OldPassword123",
-  "newPassword": "NewPassword123"
-}
-```
+- ✅ `200` returns only user’s budgets.
+- ✅ Filters applied correctly.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## Transaction Management Endpoints
+## 3. **GET `/budgets/:id`** — Fetch one budget
 
-### POST `/transactions`
+### What it should do
 
-Create a new transaction.
+- Find budget by `id` and `userId`.
+- If not found → `404`.
+- Return budget with calculated virtuals:
 
-**Headers:** `Authorization: Bearer <token>`
+  - `totalSpent`
+  - `remainingBudget`
+  - `utilizationPercentage`
+  - `budgetStatus`
 
-**Request Body:**
+### Acceptance Criteria
 
-```json
-{
-  "type": "expense",
-  "category": "food",
-  "amount": 25.5,
-  "currency": "USD",
-  "description": "Lunch at restaurant",
-  "tags": ["food", "lunch"],
-  "location": "Downtown Restaurant",
-  "date": "2024-01-01T12:00:00.000Z",
-  "isRecurring": false
-}
-```
-
-**Transaction Types:** `income`, `expense`, `transfer`
-
-**Categories:**
-
-- Income: `salary`, `freelance`, `investment`, `business`, `other_income`
-- Expense: `food`, `transport`, `entertainment`, `shopping`, `bills`, `health`, `education`, `travel`, `other_expense`
-- Transfer: `bank_transfer`, `cash_transfer`, `investment_transfer`
-
-### GET `/transactions`
-
-Get all transactions with filtering and pagination.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-
-- `page` (number): Page number (default: 1)
-- `limit` (number): Items per page (default: 20)
-- `type` (string): Filter by transaction type
-- `category` (string): Filter by category
-- `startDate` (string): Filter from date (ISO format)
-- `endDate` (string): Filter to date (ISO format)
-- `minAmount` (number): Minimum amount
-- `maxAmount` (number): Maximum amount
-- `tags` (string): Comma-separated tags
-- `sortBy` (string): Sort field (default: 'date')
-- `sortOrder` (string): Sort order - 'asc' or 'desc' (default: 'desc')
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "transactions": [...],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 100,
-      "pages": 5
-    }
-  }
-}
-```
-
-### GET `/transactions/analytics`
-
-Get transaction analytics and insights.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-
-- `startDate` (string): Start date for analysis
-- `endDate` (string): End date for analysis
-- `groupBy` (string): Grouping - 'month', 'week', 'day' (default: 'month')
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "summary": {
-      "totalIncome": 5000,
-      "totalExpense": 3000,
-      "totalTransfer": 500,
-      "transactionCount": 50,
-      "averageAmount": 100,
-      "netSavings": 2000
-    },
-    "categoryBreakdown": [...],
-    "monthlyTrends": [...],
-    "topSpendingCategories": [...]
-  }
-}
-```
-
-### POST `/transactions/bulk-import`
-
-Import multiple transactions at once.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-
-```json
-{
-  "transactions": [
-    {
-      "type": "expense",
-      "category": "food",
-      "amount": 25.5,
-      "description": "Lunch"
-    },
-    {
-      "type": "income",
-      "category": "salary",
-      "amount": 3000,
-      "description": "Monthly salary"
-    }
-  ]
-}
-```
-
-### GET `/transactions/export`
-
-Export transactions in various formats.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-
-- `format` (string): Export format - 'json' or 'csv' (default: 'json')
-- `startDate` (string): Start date for export
-- `endDate` (string): End date for export
-
-### GET `/transactions/:id`
-
-Get specific transaction by ID.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### PUT `/transactions/:id`
-
-Update specific transaction.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### DELETE `/transactions/:id`
-
-Delete specific transaction.
-
-**Headers:** `Authorization: Bearer <token>`
+- ✅ `200` if found & owned.
+- ❌ `404` if not found/not owned.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## Budget Management Endpoints
+## 4. **PATCH `/budgets/:id`** — Update a budget
 
-### POST `/budgets`
+### What it should do
 
-Create a new budget.
+- Fetch budget by `id` and `userId`.
+- Validate updates:
 
-**Headers:** `Authorization: Bearer <token>`
+  - Cannot add archived/unowned categories.
+  - Period must remain valid (`start < end`).
+  - No duplicate `categoryId`s in update.
 
-**Request Body:**
+- If categories changed → recalc `totalBudget`.
+- Save changes.
+- Return updated budget.
 
-```json
-{
-  "name": "Monthly Budget January 2024",
-  "type": "monthly",
-  "period": {
-    "startDate": "2024-01-01T00:00:00.000Z",
-    "endDate": "2024-01-31T23:59:59.000Z"
-  },
-  "categories": [
-    {
-      "category": "food",
-      "allocatedAmount": 300,
-      "color": "#EF4444"
-    },
-    {
-      "category": "transport",
-      "allocatedAmount": 150,
-      "color": "#3B82F6"
-    }
-  ],
-  "currency": "USD",
-  "notifications": {
-    "enabled": true,
-    "threshold": 80,
-    "emailAlerts": true,
-    "pushAlerts": true
-  }
-}
-```
+### Acceptance Criteria
 
-### GET `/budgets`
-
-Get all budgets with pagination.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-
-- `status` (string): Filter by status - 'active', 'completed', 'cancelled'
-- `type` (string): Filter by type - 'monthly', 'yearly', 'custom'
-- `page` (number): Page number (default: 1)
-- `limit` (number): Items per page (default: 10)
-
-### GET `/budgets/overview`
-
-Get overview of all active budgets.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "totalBudgets": 3,
-    "totalAllocated": 5000,
-    "totalSpent": 3500,
-    "totalRemaining": 1500,
-    "averageUtilization": 70,
-    "budgets": [...]
-  }
-}
-```
-
-### POST `/budgets/template`
-
-Create budget from predefined template.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-
-```json
-{
-  "template": "monthly",
-  "period": {
-    "startDate": "2024-01-01T00:00:00.000Z",
-    "endDate": "2024-01-31T23:59:59.000Z"
-  }
-}
-```
-
-**Available Templates:** `monthly`, `yearly`
-
-### GET `/budgets/:id`
-
-Get specific budget by ID.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### PUT `/budgets/:id`
-
-Update specific budget.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### DELETE `/budgets/:id`
-
-Delete specific budget.
-
-**Headers:** `Authorization: Bearer <token>`
-
-### GET `/budgets/:id/analytics`
-
-Get detailed analytics for specific budget.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "budget": {
-      "id": "budget_id",
-      "name": "Monthly Budget",
-      "totalBudget": 2000,
-      "totalSpent": 1500,
-      "remainingBudget": 500,
-      "utilizationPercentage": 75,
-      "status": "warning"
-    },
-    "categoryBreakdown": [...],
-    "recentTransactions": [...],
-    "alerts": [...]
-  }
-}
-```
-
-### POST `/budgets/:id/duplicate`
-
-Duplicate existing budget.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-
-```json
-{
-  "name": "Monthly Budget February 2024",
-  "period": {
-    "startDate": "2024-02-01T00:00:00.000Z",
-    "endDate": "2024-02-29T23:59:59.000Z"
-  }
-}
-```
+- ✅ `200` on success.
+- ❌ `400` invalid category or period.
+- ❌ `422` duplicate categories.
+- ❌ `404` not found/not owned.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## Error Responses
+## 5. **DELETE `/budgets/:id`** — Cancel budget (soft delete)
 
-All endpoints return consistent error responses:
+### What it should do
 
-```json
-{
-  "status": "error",
-  "message": "Error description",
-  "statusCode": 400
-}
-```
+- Fetch budget by `id` and `userId`.
+- Set `status="cancelled"`.
+- Save.
+- Return `204 No Content`.
 
-**Common Status Codes:**
+### Acceptance Criteria
 
-- `200`: Success
-- `201`: Created
-- `400`: Bad Request
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `409`: Conflict
-- `429`: Too Many Requests
-- `500`: Internal Server Error
+- ✅ `204` success.
+- ❌ `404` not found/not owned.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## Rate Limiting
+## 6. **GET `/budgets/:id/analytics`** — Budget analytics
 
-- **General endpoints**: 100 requests per 15 minutes
-- **Authentication endpoints**: 5 requests per 15 minutes
-- **Speed limiting**: Slows down after 50 requests per 15 minutes
+### What it should do
 
-When rate limited, you'll receive:
+- Fetch budget by `id` and `userId`.
+- Join with transactions:
 
-```json
-{
-  "error": "Too many requests",
-  "message": "Too many requests from this IP",
-  "retryAfter": 900
-}
-```
+  - Transactions must be within budget’s period.
+  - Must match one of the budget’s categories.
+  - Must be `status="completed"`.
+
+- Build analytics:
+
+  - Budget totals (totalBudget, totalSpent, remainingBudget, utilization%).
+  - Per-category breakdown (allocated vs spent vs remaining).
+  - Recent transactions.
+  - Alerts if utilization > threshold.
+
+### Acceptance Criteria
+
+- ✅ `200` success with detailed breakdown.
+- ❌ `404` not found/not owned.
+- ❌ `401` if unauthenticated.
 
 ---
 
-## Unique Features
+## 7. **POST `/budgets/:id/duplicate`** — Duplicate budget
 
-### 1. **Recurring Transactions**
+### What it should do
 
-Automatically create future transactions based on patterns:
+- Fetch source budget by `id` and `userId`.
+- Copy:
 
-```json
-{
-  "isRecurring": true,
-  "recurringPattern": {
-    "frequency": "monthly",
-    "interval": 1,
-    "endDate": "2024-12-31T23:59:59.000Z"
-  }
-}
-```
+  - `categories` (with allocated amounts but reset `spentAmount=0`).
+  - `currency`, `notifications`, etc.
 
-### 2. **Budget Templates**
+- Apply new `name` and `period` from request.
+- Save new budget.
+- Return `201`.
 
-Quick setup with predefined budget templates for monthly and yearly planning.
+### Acceptance Criteria
 
-### 3. **Advanced Analytics**
+- ✅ `201` created successfully.
+- ❌ `400` invalid period.
+- ❌ `404` source budget not found/not owned.
+- ❌ `401` if unauthenticated.
 
-Comprehensive financial insights with category breakdowns, trends, and spending patterns.
+---
 
-### 4. **Multi-Currency Support**
+# 📌 Category API Dependencies
 
-Support for USD, EUR, GBP, INR, CAD, AUD with automatic formatting.
+### Why Categories matter in Budgets
 
-### 5. **Smart Budget Tracking**
+- Budgets only work if categories are valid.
+- **Guards on Budget endpoints**:
 
-Real-time budget utilization with alerts and notifications.
+  - Each `categoryId` must exist in `Category` collection.
+  - Belong to same `userId`.
+  - `archived=false` (cannot budget for archived categories).
 
-### 6. **Bulk Operations**
+- **Cross-feature rule**:
 
-Import/export transactions and duplicate budgets for efficiency.
+  - Transactions → Category → Budget
+  - A transaction’s category determines which budget category `spentAmount` gets updated.
 
-### 7. **Enhanced Security**
+---
 
-Comprehensive security with CSP, rate limiting, and input validation.
+# 📌 Implementation Logic (Behind the Scenes)
+
+- **On Transaction create/update/delete**:
+
+  - Find all budgets where:
+
+    - `period.startDate <= txn.date <= period.endDate`
+    - `categories.categoryId` includes txn.categoryId
+    - `status=active`
+
+  - Call `budget.updateSpentAmounts()` for each.
+
+- **Virtuals on Budget model**:
+
+  - `totalSpent = sum(categories.spentAmount)`
+  - `remainingBudget = totalBudget - totalSpent`
+  - `utilizationPercentage = totalSpent / totalBudget * 100`
+  - `budgetStatus` derived from thresholds (good, warning, critical, exceeded).
+
+---
+
+# 📌 Testing Plan
+
+### Unit Tests
+
+- Period validation.
+- Duplicate categories.
+- Category ownership/archived guard.
+- Budget totals auto-update.
+- Virtuals calculate correctly.
+
+### Integration Tests
+
+- `POST /budgets` → success, invalid period, duplicate categories.
+- `GET /budgets` → filters by status/type.
+- `PATCH /budgets/:id` → update name, update categories.
+- `DELETE /budgets/:id` → soft delete.
+- `GET /budgets/:id/analytics` → correct breakdown.
+
+### Cross-feature
+
+- Transaction created → updates budget.
+- Archived category blocked in new budget.
+- Cancelled budget ignored by transaction updates.
+
+---
+
+✅ This now covers:
+
+- What each **Budget API** does,
+- **Acceptance criteria + guards**,
+- **Integration with Category & Transaction**,
+- **Testing strategy**.
+
+---
+
+👉 Do you want me to also **combine this with your Transaction + Category docs** into a **single master requirements doc (with ERD diagram + OpenAPI YAML)** so you have the _whole Fin Tracker system_ in one place?

@@ -58,10 +58,7 @@ const createTransaction = catchAsyncFunction(
     const newTransaction = new Transaction(body);
     await newTransaction.save();
 
-    return response.status(201).json({
-      status: "success",
-      data: newTransaction,
-    });
+    return successResponse(201, newTransaction, response);
   }
 );
 

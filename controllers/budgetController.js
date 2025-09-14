@@ -1,20 +1,67 @@
 import Budget from "../models/Budget.js";
+import Category from "../models/Category.js";
+import User from "../models/User.js";
 import Transaction from "../models/Transaction.js";
 import AppError from "../utils/AppError.js";
 import catchAsyncFunction from "../utils/catchAsyncFunction.js";
 import successResponse from "../utils/success-response.js";
 
 // Create a new budget
-const createBudget = catchAsyncFunction(async (req, res, next) => {
-  const userId = req.token.id;
-  const budgetData = { ...req.body, userId };
+const createBudget = catchAsyncFunction(async (request, response, next) => {
+  const userId = request.token.id;
+  const { body } = request.body; // fetch the body
 
-  // Validate that categories are provided
-  if (!budgetData.categories || budgetData.categories.length === 0) {
-    return next(new AppError(400, "At least one category must be specified"));
+  // valide the the body
+  if (!userId) {
+    return next(new AppError(401, `user is not authorised`));
   }
 
-  const budget = new Budget(budgetData);
+  const findUser = await User.findOne({ _id: userId });
+
+  if (!findUser) {
+    return next(new AppError(400, `User not found`));
+  }
+
+  //   - `name` is required.
+  // - `period.startDate < period.endDate`.
+  // - `categories[]` contains no duplicate `categoryId`.
+  // - Each `categoryId` exists, belongs to the user, and `archived=false`.
+
+  if (!body.name) {
+    return next(new AppError(400, `Name should not be null`));
+  }
+
+  if (
+    body.period.startDate > body.period.endDate ||
+    body.period.startDate == null ||
+    body.period.endDate == null
+  ) {
+    return next(
+      new AppError(
+        400,
+        `Start and end date is not valid or the period cannot be null`
+      )
+    );
+  }
+
+  if (body.categories.length <= 0) {
+    return next(
+      new AppError(400, `No category present and category cannot be empty`)
+    );
+  }
+
+  const categoryId = body.categories.map((category) => {
+    category.categoryId;
+  });
+  const findDuplicateCategory = await Category.find({
+    _id: categoryId.categoryId,
+  });
+
+  if (findDuplicateCategory.length <= 0) {
+    return next(new AppError(400, `Cateogry not found`));
+  }
+
+  const budget = new Budget({ ...body, userId: userId });
   await budget.save();
 
   return successResponse(201, budget, res);
@@ -23,13 +70,6 @@ const createBudget = catchAsyncFunction(async (req, res, next) => {
 // Get all budgets
 const getBudgets = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
-  const { status, type, page = 1, limit = 10 } = req.query;
-
-  const filter = { userId };
-  if (status) filter.status = status;
-  if (type) filter.type = type;
-
-  const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const budgets = await Budget.find(filter)
     .sort({ createdAt: -1 })

@@ -10,205 +10,86 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: function () {
+        return this.type !== "transfer"; // transfers can be uncategorized
+      },
+    },
+    budgetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Budget",
+      required: false, // optional; only needed if user explicitly assigns
+    },
 
     type: {
       type: String,
       enum: ["income", "expense", "transfer"],
       required: true,
-      index: true,
     },
-
-    // ✅ Reference real Category (optional for transfers)
-    categoryId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-      required: function () {
-        return this.type !== "transfer";
-      },
-      index: true,
-    },
-
-    // (Optional) denormalized snapshot to avoid populate on common reads
-    /*     categoryName: { type: String },
-    categoryType: { type: String, enum: ["income", "expense"] }, */
-
     amount: {
       type: Number,
       required: true,
-      min: 0,
-    },
-
-    currency: {
-      type: String,
-      default: "USD",
-      enum: ["USD", "EUR", "GBP", "INR", "CAD", "AUD"],
-    },
-
-    description: {
-      type: String,
-      required: true,
-      maxlength: 500,
+      min: 0.01,
     },
 
     date: {
       type: Date,
+      required: true,
       default: Date.now,
       index: true,
     },
-
-    tags: [{ type: String, maxlength: 20 }],
-    location: { type: String, maxlength: 100 },
-
-    receipt: {
-      url: String,
-      filename: String,
-    },
-
-    isRecurring: { type: Boolean, default: false },
-
-    recurringPattern: {
-      frequency: {
-        type: String,
-        enum: ["daily", "weekly", "monthly", "yearly"],
-      },
-      interval: { type: Number, min: 1 },
-      endDate: Date,
+    note: {
+      type: String,
+      maxlength: 500,
     },
 
     status: {
       type: String,
-      enum: ["pending", "completed", "cancelled"],
+      enum: ["pending", "completed"],
       default: "completed",
     },
-
-    metadata: {
-      source: String, // "manual", "bank_import", "receipt_scan"
-      originalAmount: Number,
-      exchangeRate: Number,
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
-// -------- Indexes --------
+// Indexes for faster lookups
 transactionSchema.index({ userId: 1, date: -1 });
-transactionSchema.index({ userId: 1, type: 1, date: -1 });
-transactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
+transactionSchema.index({ userId: 1, categoryId: 1 });
+transactionSchema.index({ userId: 1, budgetId: 1 });
 
-// -------- Virtuals --------
-transactionSchema.virtual("formattedAmount").get(function () {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: this.currency,
-  }).format(this.amount);
-});
+// Validation guard: category.type must match transaction.type
+transactionSchema.pre("save", async function (next) {
+  if (this.type !== "transfer" && this.categoryId) {
+    const Category = mongoose.model("Category");
+    const category = await Category.findById(this.categoryId);
 
-transactionSchema.virtual("month").get(function () {
-  return this.date.getMonth() + 1;
-});
-
-transactionSchema.virtual("year").get(function () {
-  return this.date.getFullYear();
-});
-
-// -------- Validation: ensure category is valid for this user & type --------
-transactionSchema.pre("validate", async function validateCategory(next) {
-  try {
-    // Transfers can omit category
-    if (this.type === "transfer" || !this.categoryId) return next();
-
-    // Category must exist, belong to same user, and not be archived
-    const cat = await Category.findOne({
-      _id: this.categoryId,
-      userId: this.userId,
-      archived: { $ne: true },
-    })
-      .select("name type")
-      .lean();
-
-    if (!cat) {
-      const err = new mongoose.Error.ValidationError();
-      err.addError(
-        "categoryId",
-        new mongoose.Error.ValidatorError({
-          message: "Category not found for this user",
-        })
-      );
-      return next(err);
+    if (!category) {
+      return next(new Error("Invalid categoryId"));
     }
-
-    // Category type must match txn type (income/expense)
-    if (cat.type !== this.type) {
-      const err = new mongoose.Error.ValidationError();
-      err.addError(
-        "type",
-        new mongoose.Error.ValidatorError({
-          message: `Category type '${cat.type}' does not match transaction type '${this.type}'`,
-        })
-      );
-      return next(err);
+    if (category.archived) {
+      return next(new Error("Archived category cannot be used"));
     }
-
-    // Write denormalized snapshot for faster reads
-    this.categoryName = cat.name;
-    this.categoryType = cat.type;
-
-    return next();
-  } catch (e) {
-    return next(e);
-  }
-});
-
-// -------- Recurring logic (unchanged) --------
-transactionSchema.pre("save", function (next) {
-  if (this.isRecurring && this.isNew) {
-    // Create future recurring transactions
-    this.createRecurringTransactions();
+    if (category.type !== this.type) {
+      return next(
+        new Error(
+          `Transaction type (${this.type}) must match category type (${category.type})`
+        )
+      );
+    }
+    if (!category.userId.equals(this.userId)) {
+      return next(new Error("Category does not belong to this user"));
+    }
   }
   next();
 });
-
-transactionSchema.methods.createRecurringTransactions = async function () {
-  if (!this.recurringPattern || !this.recurringPattern.endDate) return;
-
-  const { frequency, interval, endDate } = this.recurringPattern;
-  let currentDate = new Date(this.date);
-  const end = new Date(endDate);
-
-  while (currentDate < end) {
-    switch (frequency) {
-      case "daily":
-        currentDate.setDate(currentDate.getDate() + interval);
-        break;
-      case "weekly":
-        currentDate.setDate(currentDate.getDate() + 7 * interval);
-        break;
-      case "monthly":
-        currentDate.setMonth(currentDate.getMonth() + interval);
-        break;
-      case "yearly":
-        currentDate.setFullYear(currentDate.getFullYear() + interval);
-        break;
-      default:
-        return;
-    }
-
-    if (currentDate <= end) {
-      const newTransaction = new this.constructor({
-        ...this.toObject(),
-        _id: undefined,
-        date: new Date(currentDate),
-        isRecurring: false,
-        recurringPattern: undefined,
-      });
-      await newTransaction.save();
-    }
-  }
-};
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 export default Transaction;

@@ -28,20 +28,9 @@ const budgetSchema = new mongoose.Schema(
           ref: "Category",
           required: true,
         },
-        allocatedAmount: {
-          type: Number,
-          required: true,
-          min: 0,
-        },
-        spentAmount: {
-          type: Number,
-          default: 0,
-          min: 0,
-        },
-        color: {
-          type: String,
-          default: "#3B82F6",
-        },
+        allocatedAmount: { type: Number, required: true, min: 0 },
+        spentAmount: { type: Number, default: 0, min: 0 },
+        color: { type: String, default: "#3B82F6" },
       },
     ],
     totalBudget: {
