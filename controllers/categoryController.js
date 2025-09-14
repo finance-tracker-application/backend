@@ -41,10 +41,7 @@ const createCategory = catchAsyncFunction(async (request, response, next) => {
   const newCategory = new category(categoryBody);
   await newCategory.save();
 
-  return response.status(201).json({
-    status: "success",
-    data: newCategory,
-  });
+  return successResponse(201, newCategory, response);
 });
 
 const listCategories = catchAsyncFunction(async (request, response, next) => {
@@ -104,10 +101,9 @@ const listCategories = catchAsyncFunction(async (request, response, next) => {
 
   //count of the category for pagination
   const countCategory = await category.countDocuments(filter);
-
-  return response.status(200).json({
-    status: "success",
-    data: {
+  return successResponse(
+    201,
+    {
       categories: getAllCategory,
       pagination: {
         page: parseInt(page),
@@ -118,7 +114,8 @@ const listCategories = catchAsyncFunction(async (request, response, next) => {
         hasPrev: page > 1,
       },
     },
-  });
+    response
+  );
 });
 
 const getCategory = catchAsyncFunction(async (request, response, next) => {
@@ -149,10 +146,7 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
     return next(new AppError(404, "Category not found"));
   }
 
-  return response.status(200).json({
-    status: "success",
-    data: foundCategory,
-  });
+  return successResponse(200, foundCategory, response);
 });
 
 const updateCategory = catchAsyncFunction(async (request, response, next) => {
@@ -210,10 +204,7 @@ const updateCategory = catchAsyncFunction(async (request, response, next) => {
     { new: true, runValidators: true }
   );
 
-  return response.status(200).json({
-    status: "success",
-    data: updatedCategory,
-  });
+  return successResponse(200, updatedCategory, response);
 });
 
 const archiveCategory = catchAsyncFunction(async (request, response, next) => {

@@ -64,7 +64,7 @@ const createBudget = catchAsyncFunction(async (request, response, next) => {
   const budget = new Budget({ ...body, userId: userId });
   await budget.save();
 
-  return successResponse(201, budget, res);
+  return successResponse(201, budget, response);
 });
 
 // Get all budgets
