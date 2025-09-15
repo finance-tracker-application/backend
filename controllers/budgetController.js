@@ -9,54 +9,83 @@ import successResponse from "../utils/success-response.js";
 // Create a new budget
 const createBudget = catchAsyncFunction(async (request, response, next) => {
   const userId = request.token.id;
-  const { body } = request.body; // fetch the body
+  const body = request.body;
 
-  // valide the the body
   if (!userId) {
-    return next(new AppError(401, `user is not authorised`));
+    return next(new AppError(401, "Access Denied: Invalid Token"));
   }
 
-  const findUser = await User.findOne({ _id: userId });
-
-  if (!findUser) {
-    return next(new AppError(400, `User not found`));
+  const user = await User.findOne({ _id: userId });
+  if (!user) {
+    return next(new AppError(400, "User not found"));
   }
 
-  if (!body.name) {
-    return next(new AppError(400, `Name should not be null`));
+  if (!body?.name || typeof body.name !== "string") {
+    return next(new AppError(400, "Budget name is required"));
   }
 
-  if (
-    body.period.startDate > body.period.endDate ||
-    body.period.startDate == null ||
-    body.period.endDate == null
-  ) {
+  if (!body?.period?.startDate || !body?.period?.endDate) {
     return next(
-      new AppError(
-        400,
-        `Start and end date is not valid or the period cannot be null`
-      )
+      new AppError(400, "Budget period with start and end dates is required")
     );
   }
 
-  if (body.categories.length <= 0) {
+  const startDate = new Date(body.period.startDate);
+  const endDate = new Date(body.period.endDate);
+  if (!(startDate < endDate)) {
+    return next(new AppError(400, "End date must be after start date"));
+  }
+
+  if (!Array.isArray(body.categories) || body.categories.length === 0) {
+    return next(new AppError(400, "At least one category is required"));
+  }
+
+  for (const cat of body.categories) {
+    if (!cat?.categoryId) {
+      return next(new AppError(400, "Each category must include categoryId"));
+    }
+    if (cat.allocatedAmount == null || Number(cat.allocatedAmount) <= 0) {
+      return next(new AppError(400, "Allocated amount must be greater than 0"));
+    }
+  }
+
+  const categoryIds = body.categories.map((c) => c.categoryId.toString());
+  const uniqueIds = new Set(categoryIds);
+  if (uniqueIds.size !== categoryIds.length) {
+    return next(new AppError(422, "Duplicate categories are not allowed"));
+  }
+
+  const validCategories = await Category.find({
+    _id: { $in: [...uniqueIds] },
+    userId,
+    archived: false,
+  });
+
+  if (validCategories.length !== uniqueIds.size) {
     return next(
-      new AppError(400, `No category present and category cannot be empty`)
+      new AppError(400, "One or more categories are invalid or archived")
     );
   }
 
-  const categoryId = body.categories.map((category) => {
-    category.categoryId;
-  });
-  const findDuplicateCategory = await Category.find({
-    _id: categoryId.categoryId,
+  const totalBudget = body.categories.reduce(
+    (sum, c) => sum + Number(c.allocatedAmount || 0),
+    0
+  );
+
+  const budget = new Budget({
+    userId,
+    name: body.name,
+    type: body.type || "monthly",
+    period: { startDate, endDate },
+    categories: body.categories,
+    totalBudget,
+    currency: body.currency || "USD",
+    status: "active",
+    notifications: body.notifications,
+    tags: body.tags,
+    notes: body.notes,
   });
 
-  if (findDuplicateCategory.length <= 0) {
-    return next(new AppError(400, `Cateogry not found`));
-  }
-
-  const budget = new Budget({ ...body, userId: userId });
   await budget.save();
 
   return successResponse(201, budget, response);
