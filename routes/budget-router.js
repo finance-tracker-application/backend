@@ -5,7 +5,18 @@ import { validateBudget } from "../middleware/validationMiddleware.js";
 
 const budgetRoute = express.Router();
 
-//authorise the user to use the api
-budgetRoute.route("/").post(validateBudget, budgetController.createBudget);
+// Authorize the user to use the api
+budgetRoute.use(authUtils.verifyJWTToken);
+
+budgetRoute
+  .route("/")
+  .post(validateBudget, budgetController.createBudget)
+  .get(budgetController.getBudgets);
+
+budgetRoute
+  .route("/:id")
+  .get(budgetController.getBudgetById)
+  .patch(budgetController.updateBudget)
+  .delete(budgetController.deleteBudget);
 
 export default budgetRoute;
