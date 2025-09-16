@@ -192,9 +192,12 @@ const validateBudget = (req, res, next) => {
   }
 
   categories.forEach((cat) => {
-    if (!cat.category || !cat.allocatedAmount) {
+    if (!cat.categoryId || cat.allocatedAmount == null) {
       return next(
-        new AppError(400, "Each category must have a name and allocated amount")
+        new AppError(
+          400,
+          "Each category must include categoryId and allocated amount"
+        )
       );
     }
 

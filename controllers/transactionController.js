@@ -3,6 +3,7 @@ import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import AppError from "../utils/AppError.js";
 import successResponse from "../utils/success-response.js";
+import category from "../models/Category.js";
 
 const createTransaction = catchAsyncFunction(
   async (request, response, next) => {
@@ -37,10 +38,16 @@ const createTransaction = catchAsyncFunction(
       );
     }
 
-    if (!body.category || typeof body.category !== "string") {
+    if (!body.categoryId) {
       return next(
         new AppError(400, "Category is required and must be a string")
       );
+    }
+
+    const getCategory = await category.findOne({ _id: categoryId });
+
+    if (!getCategory) {
+      return next(new AppError(400, "Category is not found"));
     }
 
     // note validation (optional)
@@ -51,10 +58,7 @@ const createTransaction = catchAsyncFunction(
     const newTransaction = new Transaction(body);
     await newTransaction.save();
 
-    return response.status(201).json({
-      status: "success",
-      data: newTransaction,
-    });
+    return successResponse(201, newTransaction, response);
   }
 );
 
@@ -174,7 +178,12 @@ const getAllTransactions = catchAsyncFunction(
 
     // Get total count for pagination
     const total = await Transaction.countDocuments(filter);
+    console.log(total);
 
+    // validation when no data found
+    if (total <= 0) {
+      return next(new AppError(400, `No data found and present`));
+    }
     // Calculate summary statistics
     const summary = await Transaction.aggregate([
       { $match: filter },

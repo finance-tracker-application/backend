@@ -1,4 +1,6 @@
+// models/Transaction.js
 import mongoose from "mongoose";
+import Category from "./Category.js";
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -6,171 +8,88 @@ const transactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: function () {
+        return this.type !== "transfer"; // transfers can be uncategorized
+      },
+    },
+    budgetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Budget",
+      required: false, // optional; only needed if user explicitly assigns
+    },
+
     type: {
       type: String,
       enum: ["income", "expense", "transfer"],
       required: true,
     },
-    category: {
-      type: String,
-      required: true,
-      enum: [
-        // Income categories
-        "salary",
-        "freelance",
-        "investment",
-        "business",
-        "other_income",
-        // Expense categories
-        "food",
-        "transport",
-        "entertainment",
-        "shopping",
-        "bills",
-        "health",
-        "education",
-        "travel",
-        "other_expense",
-        // Transfer categories
-        "bank_transfer",
-        "cash_transfer",
-        "investment_transfer",
-      ],
-    },
     amount: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0.01,
     },
-    currency: {
-      type: String,
-      default: "USD",
-      enum: ["USD", "EUR", "GBP", "INR", "CAD", "AUD"],
-    },
-    description: {
-      type: String,
-      required: true,
-      maxlength: 500,
-    },
+
     date: {
       type: Date,
+      required: true,
       default: Date.now,
+      index: true,
     },
-    tags: [
-      {
-        type: String,
-        maxlength: 20,
-      },
-    ],
-    location: {
+    note: {
       type: String,
-      maxlength: 100,
+      maxlength: 500,
     },
-    receipt: {
-      url: String,
-      filename: String,
-    },
-    isRecurring: {
-      type: Boolean,
-      default: false,
-    },
-    recurringPattern: {
-      frequency: {
-        type: String,
-        enum: ["daily", "weekly", "monthly", "yearly"],
-      },
-      interval: {
-        type: Number,
-        min: 1,
-      },
-      endDate: Date,
-    },
+
     status: {
       type: String,
-      enum: ["pending", "completed", "cancelled"],
+      enum: ["pending", "completed"],
       default: "completed",
     },
-    metadata: {
-      source: String, // "manual", "bank_import", "receipt_scan"
-      originalAmount: Number,
-      exchangeRate: Number,
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
-// Indexes for better performance
+// Indexes for faster lookups
 transactionSchema.index({ userId: 1, date: -1 });
-transactionSchema.index({ userId: 1, type: 1, date: -1 });
-transactionSchema.index({ userId: 1, category: 1, date: -1 });
+transactionSchema.index({ userId: 1, categoryId: 1 });
+transactionSchema.index({ userId: 1, budgetId: 1 });
 
-// Virtual for formatted amount
-transactionSchema.virtual("formattedAmount").get(function () {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: this.currency,
-  }).format(this.amount);
-});
+// Validation guard: category.type must match transaction.type
+transactionSchema.pre("save", async function (next) {
+  if (this.type !== "transfer" && this.categoryId) {
+    const Category = mongoose.model("Category");
+    const category = await Category.findById(this.categoryId);
 
-// Virtual for month and year
-transactionSchema.virtual("month").get(function () {
-  return this.date.getMonth() + 1;
-});
-
-transactionSchema.virtual("year").get(function () {
-  return this.date.getFullYear();
-});
-
-// Pre-save middleware to handle recurring transactions
-transactionSchema.pre("save", function (next) {
-  if (this.isRecurring && this.isNew) {
-    // Create future recurring transactions
-    this.createRecurringTransactions();
+    if (!category) {
+      return next(new Error("Invalid categoryId"));
+    }
+    if (category.archived) {
+      return next(new Error("Archived category cannot be used"));
+    }
+    if (category.type !== this.type) {
+      return next(
+        new Error(
+          `Transaction type (${this.type}) must match category type (${category.type})`
+        )
+      );
+    }
+    if (!category.userId.equals(this.userId)) {
+      return next(new Error("Category does not belong to this user"));
+    }
   }
   next();
 });
-
-// Method to create recurring transactions
-transactionSchema.methods.createRecurringTransactions = async function () {
-  if (!this.recurringPattern || !this.recurringPattern.endDate) return;
-
-  const { frequency, interval, endDate } = this.recurringPattern;
-  let currentDate = new Date(this.date);
-  const end = new Date(endDate);
-
-  while (currentDate < end) {
-    switch (frequency) {
-      case "daily":
-        currentDate.setDate(currentDate.getDate() + interval);
-        break;
-      case "weekly":
-        currentDate.setDate(currentDate.getDate() + 7 * interval);
-        break;
-      case "monthly":
-        currentDate.setMonth(currentDate.getMonth() + interval);
-        break;
-      case "yearly":
-        currentDate.setFullYear(currentDate.getFullYear() + interval);
-        break;
-    }
-
-    if (currentDate <= end) {
-      const newTransaction = new this.constructor({
-        ...this.toObject(),
-        _id: undefined,
-        date: new Date(currentDate),
-        isRecurring: false,
-        recurringPattern: undefined,
-      });
-      await newTransaction.save();
-    }
-  }
-};
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 export default Transaction;

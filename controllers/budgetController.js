@@ -1,54 +1,154 @@
 import Budget from "../models/Budget.js";
+import Category from "../models/Category.js";
+import User from "../models/User.js";
 import Transaction from "../models/Transaction.js";
 import AppError from "../utils/AppError.js";
 import catchAsyncFunction from "../utils/catchAsyncFunction.js";
 import successResponse from "../utils/success-response.js";
 
 // Create a new budget
-const createBudget = catchAsyncFunction(async (req, res, next) => {
-  const userId = req.token.id;
-  const budgetData = { ...req.body, userId };
+const createBudget = catchAsyncFunction(async (request, response, next) => {
+  const userId = request.token.id;
+  const body = request.body;
 
-  // Validate that categories are provided
-  if (!budgetData.categories || budgetData.categories.length === 0) {
-    return next(new AppError(400, "At least one category must be specified"));
+  if (!userId) {
+    return next(new AppError(401, "Access Denied: Invalid Token"));
   }
 
-  const budget = new Budget(budgetData);
+  const user = await User.findOne({ _id: userId });
+  if (!user) {
+    return next(new AppError(400, "User not found"));
+  }
+
+  if (!body?.name || typeof body.name !== "string") {
+    return next(new AppError(400, "Budget name is required"));
+  }
+
+  if (!body?.period?.startDate || !body?.period?.endDate) {
+    return next(
+      new AppError(400, "Budget period with start and end dates is required")
+    );
+  }
+
+  const startDate = new Date(body.period.startDate);
+  const endDate = new Date(body.period.endDate);
+  if (!(startDate < endDate)) {
+    return next(new AppError(400, "End date must be after start date"));
+  }
+
+  if (!Array.isArray(body.categories) || body.categories.length === 0) {
+    return next(new AppError(400, "At least one category is required"));
+  }
+
+  for (const cat of body.categories) {
+    if (!cat.categoryId) {
+      return next(new AppError(400, "CategoryId cannot be null"));
+    }
+    if (cat.allocatedAmount == null || Number(cat.allocatedAmount) <= 0) {
+      return next(
+        new AppError(
+          400,
+          "allocated amount is not a number and cannot be empty"
+        )
+      );
+    }
+  }
+
+  const category = body.categories.map((cat) => {
+    return cat.categoryId;
+  });
+
+  const uniqueCategoriesId = new Set(category);
+
+  if (uniqueCategoriesId.size != category.length) {
+    return next(new AppError(409, "duplicate Categoryid is not allowed"));
+  }
+
+  const checkValideCategories = await Category.find({
+    _id: { $in: [uniqueCategoriesId] },
+    userId,
+    archived: false,
+  });
+
+  if (checkValideCategories.length !== uniqueCategoriesId.size) {
+    return next(new AppError(409, "duplicate Categoryid is not allowed"));
+  }
+
+  const totalBudget = body.categories.reduce((sum, c) => {
+    return sum + (Number(c.allocatedAmount) || 0);
+  }, 0);
+
+  const budget = new Budget({
+    userId,
+    name: body.name,
+    type: body.type || "monthly",
+    period: { startDate, endDate },
+    categories: body.categories,
+    totalBudget,
+    currency: body.currency || "USD",
+    status: "active",
+    notifications: body.notifications,
+    tags: body.tags,
+    notes: body.notes,
+  });
+
   await budget.save();
 
-  return successResponse(201, budget, res);
+  return successResponse(201, budget, response);
 });
 
 // Get all budgets
 const getBudgets = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
-  const { status, type, page = 1, limit = 10 } = req.query;
+
+  if (!userId) {
+    return next(new AppError(401, "Access Denied: Invalid Token"));
+  }
+
+  const { page = 1, limit = 10, status, type } = req.query;
+
+  const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+  const parsedLimit = Math.max(parseInt(limit, 10) || 10, 1);
+  const skip = (parsedPage - 1) * parsedLimit;
 
   const filter = { userId };
-  if (status) filter.status = status;
-  if (type) filter.type = type;
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  if (status !== undefined) {
+    const allowedStatuses = ["active", "completed", "cancelled"];
+    if (!allowedStatuses.includes(status)) {
+      return next(new AppError(400, "Invalid status filter"));
+    }
+    filter.status = status;
+  }
+
+  if (type !== undefined) {
+    const allowedTypes = ["monthly", "yearly", "custom"];
+    if (!allowedTypes.includes(type)) {
+      return next(new AppError(400, "Invalid type filter"));
+    }
+    filter.type = type;
+  }
 
   const budgets = await Budget.find(filter)
-    .sort({ createdAt: -1 })
+    .sort({ "period.startDate": -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(parsedLimit);
 
   const total = await Budget.countDocuments(filter);
 
-  const response = {
-    budgets,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / parseInt(limit)),
+  return successResponse(
+    200,
+    {
+      budgets,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        pages: Math.ceil(total / parsedLimit),
+      },
     },
-  };
-
-  return successResponse(200, response, res);
+    res
+  );
 });
 
 // Get budget by ID
@@ -79,11 +179,74 @@ const updateBudget = catchAsyncFunction(async (req, res, next) => {
     return next(new AppError(404, "Budget not found"));
   }
 
-  // Update budget
-  Object.assign(budget, req.body);
+  const updates = req.body || {};
+
+  // Validate period if provided
+  if (updates.period) {
+    const { startDate, endDate } = updates.period;
+    if (!startDate || !endDate || new Date(endDate) <= new Date(startDate)) {
+      return next(new AppError(400, "End date must be after start date"));
+    }
+  }
+
+  // Validate type if provided
+  if (updates.type) {
+    const allowedTypes = ["monthly", "yearly", "custom"];
+    if (!allowedTypes.includes(updates.type)) {
+      return next(new AppError(400, "Invalid budget type"));
+    }
+  }
+
+  // Validate categories if provided
+  if (Array.isArray(updates.categories)) {
+    const categoryIds = updates.categories.map((c) => c.categoryId?.toString());
+
+    // Ensure all provided categories include categoryId
+    if (!categoryIds.every((id) => Boolean(id))) {
+      return next(new AppError(400, "Each category must include categoryId"));
+    }
+
+    // Check duplicates
+    const uniqueIds = new Set(categoryIds);
+    if (uniqueIds.size !== categoryIds.length) {
+      return next(new AppError(422, "Duplicate categories are not allowed"));
+    }
+
+    // Verify all categories belong to user and are not archived
+    const validCategories = await Category.find({
+      _id: { $in: categoryIds },
+      userId,
+      archived: false,
+    });
+
+    if (validCategories.length !== categoryIds.length) {
+      return next(
+        new AppError(400, "One or more categories are invalid or archived")
+      );
+    }
+  }
+
+  // Apply allowed updates
+  const allowedFields = [
+    "name",
+    "type",
+    "period",
+    "categories",
+    "currency",
+    "notifications",
+    "tags",
+    "notes",
+  ];
+
+  for (const field of allowedFields) {
+    if (Object.prototype.hasOwnProperty.call(updates, field)) {
+      budget[field] = updates[field];
+    }
+  }
+
   await budget.save();
 
-  // Update spent amounts
+  // Recompute spent amounts after possible period/category updates
   await budget.updateSpentAmounts();
 
   return successResponse(200, budget, res);
@@ -94,39 +257,112 @@ const deleteBudget = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
   const { id } = req.params;
 
-  const budget = await Budget.findOneAndDelete({ _id: id, userId });
+  const budget = await Budget.findOne({ _id: id, userId });
 
   if (!budget) {
     return next(new AppError(404, "Budget not found"));
   }
 
-  return successResponse(200, { message: "Budget deleted successfully" }, res);
+  // Soft delete: mark as cancelled
+  if (budget.status !== "cancelled") {
+    budget.status = "cancelled";
+    await budget.save();
+  }
+
+  return res.status(204).send();
 });
 
 // Get budget analytics
+// const getBudgetAnalytics = catchAsyncFunction(async (req, res, next) => {
+//   const userId = req.token.id;
+//   const { budgetId } = req.params;
+
+//   const budget = await Budget.findOne({ _id: budgetId, userId });
+
+//   if (!budget) {
+//     return next(new AppError(404, "Budget not found"));
+//   }
+
+//   // Update spent amounts
+//   await budget.updateSpentAmounts();
+
+//   // Get category-wise breakdown
+//   const categoryBreakdown = budget.categories.map((cat) => ({
+//     category: cat.category,
+//     allocated: cat.allocatedAmount,
+//     spent: cat.spentAmount,
+//     remaining: cat.allocatedAmount - cat.spentAmount,
+//     percentage:
+//       cat.allocatedAmount > 0
+//         ? (cat.spentAmount / cat.allocatedAmount) * 100
+//         : 0,
+//     status:
+//       cat.spentAmount > cat.allocatedAmount
+//         ? "exceeded"
+//         : (cat.spentAmount / cat.allocatedAmount) * 100 >= 90
+//         ? "critical"
+//         : (cat.spentAmount / cat.allocatedAmount) * 100 >= 75
+//         ? "warning"
+//         : "good",
+//   }));
+
+//   // Get recent transactions for this budget period
+//   const recentTransactions = await Transaction.find({
+//     userId,
+//     type: "expense",
+//     date: { $gte: budget.period.startDate, $lte: budget.period.endDate },
+//     status: "completed",
+//   })
+//     .sort({ date: -1 })
+//     .limit(10);
+
+//   const analytics = {
+//     budget: {
+//       id: budget._id,
+//       name: budget.name,
+//       type: budget.type,
+//       period: budget.period,
+//       totalBudget: budget.totalBudget,
+//       totalSpent: budget.totalSpent,
+//       remainingBudget: budget.remainingBudget,
+//       utilizationPercentage: budget.utilizationPercentage,
+//       status: budget.budgetStatus,
+//     },
+//     categoryBreakdown,
+//     recentTransactions,
+//     alerts: generateBudgetAlerts(budget, categoryBreakdown),
+//   };
+
+//   return successResponse(200, analytics, res);
+// });
+
 const getBudgetAnalytics = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
-  const { budgetId } = req.params;
-
-  const budget = await Budget.findOne({ _id: budgetId, userId });
-
-  if (!budget) {
-    return next(new AppError(404, "Budget not found"));
+  const { budgetId } = req.params; // fetch the budgetId from the params
+  // validation
+  if (!userId) {
+    return next(new AppError(401, `unauthorised the userId is not validated`));
   }
 
-  // Update spent amounts
+  const budget = await Budget.findOne({ userId: userId, _id: budgetId });
+
+  if (!budget) {
+    return next(new AppError(404, `Budget not found`));
+  }
+
   await budget.updateSpentAmounts();
 
-  // Get category-wise breakdown
   const categoryBreakdown = budget.categories.map((cat) => ({
-    category: cat.category,
-    allocated: cat.allocatedAmount,
+    categoryId: cat.categoryId,
+    name: cat.name,
+    allocatedAmount: cat.allocatedAmount,
     spent: cat.spentAmount,
     remaining: cat.allocatedAmount - cat.spentAmount,
     percentage:
       cat.allocatedAmount > 0
         ? (cat.spentAmount / cat.allocatedAmount) * 100
         : 0,
+
     status:
       cat.spentAmount > cat.allocatedAmount
         ? "exceeded"
@@ -137,15 +373,12 @@ const getBudgetAnalytics = catchAsyncFunction(async (req, res, next) => {
         : "good",
   }));
 
-  // Get recent transactions for this budget period
   const recentTransactions = await Transaction.find({
     userId,
     type: "expense",
-    date: { $gte: budget.period.startDate, $lte: budget.period.endDate },
     status: "completed",
-  })
-    .sort({ date: -1 })
-    .limit(10);
+    date: { $gte: budget.period.startDate, $lte: budget.period.endDate },
+  });
 
   const analytics = {
     budget: {
