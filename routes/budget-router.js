@@ -19,4 +19,8 @@ budgetRoute
   .patch(budgetController.updateBudget)
   .delete(budgetController.deleteBudget);
 
+budgetRoute
+  .route("/:budgetId/analytics")
+  .get(budgetController.getBudgetAnalytics);
+
 export default budgetRoute;
