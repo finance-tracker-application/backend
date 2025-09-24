@@ -66,14 +66,16 @@ const budgetSchema = new mongoose.Schema(
 
 // ---------------- Virtuals ----------------
 budgetSchema.virtual("totalSpent").get(function () {
-  return this.categories.reduce((total, cat) => total + cat.spentAmount, 0);
+  return this.categories.reduce((sum, b) => {
+    return sum + b.spentAmount;
+  }, 0);
 });
 
 budgetSchema.virtual("remainingBudget").get(function () {
   return this.totalBudget - this.totalSpent;
 });
 
-budgetSchema.virtual("utilizationPercentage").get(function () {
+budgetSchema.virtual("ultizzationBudget").get(function () {
   return this.totalBudget > 0 ? (this.totalSpent / this.totalBudget) * 100 : 0;
 });
 

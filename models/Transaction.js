@@ -1,6 +1,9 @@
 // models/Transaction.js
 import mongoose from "mongoose";
 import Category from "./Category.js";
+import catchAsyncFunction from "../utils/catchAsyncFunction.js";
+import AppError from "../utils/AppError.js";
+import Budget from "./Budget.js";
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -93,3 +96,50 @@ transactionSchema.pre("save", async function (next) {
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 export default Transaction;
+
+// ---------------- save middleware ----------------
+transactionSchema.post(
+  "save",
+  catchAsyncFunction(async function (doc, next) {
+    const fetchBudget = await Budget.findOne({ _id: doc.budgetId });
+
+    if (!fetchBudget) {
+      return next(new AppError(400, `Could not find the budget`));
+    }
+
+    const filteredCategory = fetchBudget.categories.find((cat) => {
+      return (cat.categoryId = doc.categoryId);
+    });
+
+    if (filteredCategory) {
+      filteredCategory.spentAmount += doc.amount;
+    }
+
+    await fetchBudget.save();
+
+    next();
+  })
+);
+
+transactionSchema.post(
+  "remove",
+  catchAsyncFunction(async function (doc, next) {
+    const fetchBudget = await Budget.findOne({ _id: doc.budgetId });
+
+    if (!fetchBudget) {
+      return next(new AppError(400, `Could not find the budget`));
+    }
+
+    const filteredCategory = fetchBudget.categories.find((cat) => {
+      return (cat.categoryId = doc.categoryId);
+    });
+
+    if (filteredCategory) {
+      filteredCategory.spentAmount -= doc.amount;
+    }
+
+    await fetchBudget.save();
+
+    next();
+  })
+);

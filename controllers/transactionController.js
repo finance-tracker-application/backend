@@ -44,7 +44,7 @@ const createTransaction = catchAsyncFunction(
       );
     }
 
-    const getCategory = await category.findOne({ _id: categoryId });
+    const getCategory = await category.findOne({ _id: body.categoryId });
 
     if (!getCategory) {
       return next(new AppError(400, "Category is not found"));

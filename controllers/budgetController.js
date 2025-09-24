@@ -272,70 +272,6 @@ const deleteBudget = catchAsyncFunction(async (req, res, next) => {
   return res.status(204).send();
 });
 
-// Get budget analytics
-// const getBudgetAnalytics = catchAsyncFunction(async (req, res, next) => {
-//   const userId = req.token.id;
-//   const { budgetId } = req.params;
-
-//   const budget = await Budget.findOne({ _id: budgetId, userId });
-
-//   if (!budget) {
-//     return next(new AppError(404, "Budget not found"));
-//   }
-
-//   // Update spent amounts
-//   await budget.updateSpentAmounts();
-
-//   // Get category-wise breakdown
-//   const categoryBreakdown = budget.categories.map((cat) => ({
-//     category: cat.category,
-//     allocated: cat.allocatedAmount,
-//     spent: cat.spentAmount,
-//     remaining: cat.allocatedAmount - cat.spentAmount,
-//     percentage:
-//       cat.allocatedAmount > 0
-//         ? (cat.spentAmount / cat.allocatedAmount) * 100
-//         : 0,
-//     status:
-//       cat.spentAmount > cat.allocatedAmount
-//         ? "exceeded"
-//         : (cat.spentAmount / cat.allocatedAmount) * 100 >= 90
-//         ? "critical"
-//         : (cat.spentAmount / cat.allocatedAmount) * 100 >= 75
-//         ? "warning"
-//         : "good",
-//   }));
-
-//   // Get recent transactions for this budget period
-//   const recentTransactions = await Transaction.find({
-//     userId,
-//     type: "expense",
-//     date: { $gte: budget.period.startDate, $lte: budget.period.endDate },
-//     status: "completed",
-//   })
-//     .sort({ date: -1 })
-//     .limit(10);
-
-//   const analytics = {
-//     budget: {
-//       id: budget._id,
-//       name: budget.name,
-//       type: budget.type,
-//       period: budget.period,
-//       totalBudget: budget.totalBudget,
-//       totalSpent: budget.totalSpent,
-//       remainingBudget: budget.remainingBudget,
-//       utilizationPercentage: budget.utilizationPercentage,
-//       status: budget.budgetStatus,
-//     },
-//     categoryBreakdown,
-//     recentTransactions,
-//     alerts: generateBudgetAlerts(budget, categoryBreakdown),
-//   };
-
-//   return successResponse(200, analytics, res);
-// });
-
 const getBudgetAnalytics = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
   const { budgetId } = req.params; // fetch the budgetId from the params
@@ -502,7 +438,19 @@ const createBudgetFromTemplate = catchAsyncFunction(async (req, res, next) => {
 // Duplicate existing budget
 const duplicateBudget = catchAsyncFunction(async (req, res, next) => {
   const userId = req.token.id;
+
+  if (!userId) {
+    return next(
+      new AppError(401, "User id is not present and the token is not validated")
+    );
+  }
+
   const { id } = req.params;
+
+  if (!id) {
+    return next(new AppError(400, "Budget id is not present "));
+  }
+
   const { name, period } = req.body;
 
   const originalBudget = await Budget.findOne({ _id: id, userId });
@@ -513,13 +461,16 @@ const duplicateBudget = catchAsyncFunction(async (req, res, next) => {
 
   const newBudget = new Budget({
     userId,
-    name: name || `${originalBudget.name} (Copy)`,
-    type: originalBudget.type,
-    period: period || originalBudget.period,
-    categories: originalBudget.categories.map((cat) => ({
-      ...cat.toObject(),
-      spentAmount: 0,
-    })),
+    name: name || `${originalBudget.name} copy`,
+    period: period,
+    categories: originalBudget.categories.map((cat) => {
+      return {
+        categoryId: cat.categoryId,
+        allocatedAmount: cat.allocatedAmount,
+        spentAmount: 0,
+        color: cat.color,
+      };
+    }),
     currency: originalBudget.currency,
     notifications: originalBudget.notifications,
     tags: originalBudget.tags,
