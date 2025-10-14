@@ -75,12 +75,12 @@ budgetSchema.virtual("remainingBudget").get(function () {
   return this.totalBudget - this.totalSpent;
 });
 
-budgetSchema.virtual("ultizzationBudget").get(function () {
+budgetSchema.virtual("utilizationBudget").get(function () {
   return this.totalBudget > 0 ? (this.totalSpent / this.totalBudget) * 100 : 0;
 });
 
 budgetSchema.virtual("budgetStatus").get(function () {
-  const percentage = this.utilizationPercentage;
+  const percentage = this.utilizationBudget;
   if (percentage >= 100) return "exceeded";
   if (percentage >= 90) return "critical";
   if (percentage >= 75) return "warning";
