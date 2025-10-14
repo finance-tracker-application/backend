@@ -67,7 +67,7 @@ const listCategories = catchAsyncFunction(async (request, response, next) => {
     includeArchived,
   } = request.query;
 
-  const filter = { userId };
+  const filter = { userId: findUser._id };
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const limitNum = parseInt(limit);
@@ -102,7 +102,7 @@ const listCategories = catchAsyncFunction(async (request, response, next) => {
   //count of the category for pagination
   const countCategory = await category.countDocuments(filter);
   return successResponse(
-    201,
+    200,
     {
       categories: getAllCategory,
       pagination: {
@@ -172,7 +172,7 @@ const updateCategory = catchAsyncFunction(async (request, response, next) => {
   // Check if category exists
   const existingCategory = await category.findOne({
     _id: id,
-    userId: findUser.userId,
+    userId: findUser._id,
   });
 
   if (!existingCategory) {
@@ -187,7 +187,7 @@ const updateCategory = catchAsyncFunction(async (request, response, next) => {
   // Check for duplicate name if name is being updated
   if (body.name && body.name !== existingCategory.name) {
     const duplicateCategory = await category.findOne({
-      userId: findUser.userId,
+      userId: findUser._id,
       name: body.name,
       _id: { $ne: id },
     });
@@ -229,7 +229,7 @@ const archiveCategory = catchAsyncFunction(async (request, response, next) => {
   // Check if category exists
   const existingCategory = await category.findOne({
     _id: id,
-    userId: findUser.userId,
+    userId: findUser._id,
   });
 
   if (!existingCategory) {

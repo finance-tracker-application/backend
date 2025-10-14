@@ -108,7 +108,7 @@ transactionSchema.post(
     }
 
     const filteredCategory = fetchBudget.categories.find((cat) => {
-      return (cat.categoryId = doc.categoryId);
+      return cat.categoryId === doc.categoryId;
     });
 
     if (filteredCategory) {
@@ -131,7 +131,7 @@ transactionSchema.post(
     }
 
     const filteredCategory = fetchBudget.categories.find((cat) => {
-      return (cat.categoryId = doc.categoryId);
+      return cat.categoryId === doc.categoryId;
     });
 
     if (filteredCategory) {
