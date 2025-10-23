@@ -5,6 +5,7 @@ import AppError from "../utils/AppError.js";
 import requestFunction from "../utils/requestFunction.js";
 import successResponse from "../utils/success-response.js";
 import category from "../models/Category.js";
+import mongoose from "mongoose";
 
 const createCategory = catchAsyncFunction(async (request, response, next) => {
   //fetch body
@@ -131,6 +132,11 @@ const getCategory = catchAsyncFunction(async (request, response, next) => {
     return next(new AppError(400, "Category ID is required"));
   }
 
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError(400, "Invalid category ID format"));
+  }
+
   const findUser = await User.findOne({ _id: userId });
 
   if (!findUser) {
@@ -161,6 +167,11 @@ const updateCategory = catchAsyncFunction(async (request, response, next) => {
 
   if (!id) {
     return next(new AppError(400, "Category ID is required"));
+  }
+
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError(400, "Invalid category ID format"));
   }
 
   const findUser = await User.findOne({ _id: userId });
@@ -218,6 +229,11 @@ const archiveCategory = catchAsyncFunction(async (request, response, next) => {
 
   if (!id) {
     return next(new AppError(400, "Category ID is required"));
+  }
+
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError(400, "Invalid category ID format"));
   }
 
   const findUser = await User.findOne({ _id: userId });
