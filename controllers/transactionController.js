@@ -4,11 +4,14 @@ import User from "../models/User.js";
 import AppError from "../utils/AppError.js";
 import successResponse from "../utils/success-response.js";
 import category from "../models/Category.js";
+import mongoose from "mongoose";
 
 const createTransaction = catchAsyncFunction(
   async (request, response, next) => {
+    console.log("console.log of request", request);
     //validation
     const { body } = request;
+
     if (!body) {
       return next(new AppError(400, "body cannot be empty"));
     }
@@ -38,6 +41,8 @@ const createTransaction = catchAsyncFunction(
       );
     }
 
+    console.log("body--->", body);
+
     if (!body.categoryId) {
       return next(
         new AppError(400, "Category is required and must be a string")
@@ -55,7 +60,10 @@ const createTransaction = catchAsyncFunction(
       return next(new AppError(400, "Note cannot exceed 500 characters"));
     }
 
-    const newTransaction = new Transaction(body);
+    const newTransaction = new Transaction({
+      ...body,
+      userId: findUser._id,
+    });
     await newTransaction.save();
 
     return successResponse(201, newTransaction, response);
@@ -179,11 +187,6 @@ const getAllTransactions = catchAsyncFunction(
     // Get total count for pagination
     const total = await Transaction.countDocuments(filter);
     console.log(total);
-
-    // validation when no data found
-    if (total <= 0) {
-      return next(new AppError(400, `No data found and present`));
-    }
     // Calculate summary statistics
     const summary = await Transaction.aggregate([
       { $match: filter },
@@ -256,6 +259,15 @@ const getTransactionById = catchAsyncFunction(
       return next(new AppError(401, "Unauthorized"));
     }
 
+    if (!id) {
+      return next(new AppError(400, "Transaction ID is required"));
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError(400, "Invalid transaction ID format"));
+    }
+
     const transaction = await Transaction.findOne({ _id: id, userId })
       .populate("userId", "name userName email")
       .exec();
@@ -277,6 +289,15 @@ const updateTransaction = catchAsyncFunction(
 
     if (!userId) {
       return next(new AppError(401, "Unauthorized"));
+    }
+
+    if (!id) {
+      return next(new AppError(400, "Transaction ID is required"));
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError(400, "Invalid transaction ID format"));
     }
 
     // Validate update data
@@ -325,6 +346,15 @@ const deleteTransaction = catchAsyncFunction(
 
     if (!userId) {
       return next(new AppError(401, "Unauthorized"));
+    }
+
+    if (!id) {
+      return next(new AppError(400, "Transaction ID is required"));
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError(400, "Invalid transaction ID format"));
     }
 
     const transaction = await Transaction.findOneAndDelete({ _id: id, userId });

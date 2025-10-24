@@ -116,25 +116,24 @@ const validatePasswordChange = (req, res, next) => {
 
 // Transaction validation
 const validateTransaction = (req, res, next) => {
-  const { type, category, amount, description, currency } = req.body;
+  const { type, categoryId, amount, note, currency } = req.body;
 
   if (!type || !["income", "expense", "transfer"].includes(type)) {
     return next(new AppError(400, "Valid transaction type is required"));
   }
 
-  if (!category) {
+  if (!categoryId) {
     return next(new AppError(400, "Category is required"));
   }
 
   if (!amount || amount <= 0) {
     return next(new AppError(400, "Valid amount is required"));
   }
-
-  if (!description || description.trim().length === 0) {
+  if (!note || note.trim().length === 0) {
     return next(new AppError(400, "Description is required"));
   }
 
-  if (description.length > 500) {
+  if (note.length > 500) {
     return next(
       new AppError(400, "Description must be less than 500 characters")
     );
