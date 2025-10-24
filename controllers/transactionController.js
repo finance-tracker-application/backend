@@ -8,7 +8,6 @@ import mongoose from "mongoose";
 
 const createTransaction = catchAsyncFunction(
   async (request, response, next) => {
-    console.log("console.log of request", request);
     //validation
     const { body } = request;
 
@@ -40,8 +39,6 @@ const createTransaction = catchAsyncFunction(
         new AppError(404, "the amount is not a number or it is negative")
       );
     }
-
-    console.log("body--->", body);
 
     if (!body.categoryId) {
       return next(
