@@ -65,7 +65,7 @@ const createBudget = catchAsyncFunction(async (request, response, next) => {
   }
 
   const checkValideCategories = await Category.find({
-    _id: { $in: [uniqueCategoriesId] },
+    _id: { $in: Array.from(uniqueCategoriesId) },
     userId,
     archived: false,
   });
