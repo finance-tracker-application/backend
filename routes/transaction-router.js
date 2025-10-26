@@ -14,7 +14,7 @@ transactionRouter
 
 transactionRouter
   .route("/:id")
-  .get(validateTransaction, transactionController.getTransactionById)
+  .get(transactionController.getTransactionById)
   .put(validateTransaction, transactionController.updateTransaction)
   .delete(validateTransaction, transactionController.deleteTransaction);
 
