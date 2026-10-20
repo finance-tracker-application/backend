@@ -1,25 +1,5 @@
 import AppError from "../utils/AppError.js";
 
-// Email validation
-const isValidEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-// Password validation
-const isValidPassword = (password) => {
-  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
-  return passwordRegex.test(password);
-};
-
-// Username validation
-const isValidUsername = (username) => {
-  // 3-20 characters, alphanumeric and underscore only
-  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-  return usernameRegex.test(username);
-};
-
 // Validate signup data
 const validateSignup = (req, res, next) => {
   const { name, email, userName, password } = req.body;
@@ -40,8 +20,8 @@ const validateSignup = (req, res, next) => {
     return next(
       new AppError(
         400,
-        "Username must be 3-20 characters, alphanumeric and underscore only"
-      )
+        "Username must be 3-20 characters, alphanumeric and underscore only",
+      ),
     );
   }
 
@@ -49,8 +29,8 @@ const validateSignup = (req, res, next) => {
     return next(
       new AppError(
         400,
-        "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"
-      )
+        "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number",
+      ),
     );
   }
 
@@ -84,8 +64,8 @@ const validateProfileUpdate = (req, res, next) => {
     return next(
       new AppError(
         400,
-        "Username must be 3-20 characters, alphanumeric and underscore only"
-      )
+        "Username must be 3-20 characters, alphanumeric and underscore only",
+      ),
     );
   }
 
@@ -98,7 +78,7 @@ const validatePasswordChange = (req, res, next) => {
 
   if (!currentPassword || !newPassword) {
     return next(
-      new AppError(400, "Current password and new password are required")
+      new AppError(400, "Current password and new password are required"),
     );
   }
 
@@ -106,8 +86,8 @@ const validatePasswordChange = (req, res, next) => {
     return next(
       new AppError(
         400,
-        "New password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"
-      )
+        "New password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number",
+      ),
     );
   }
 
@@ -135,7 +115,7 @@ const validateTransaction = (req, res, next) => {
 
   if (note.length > 500) {
     return next(
-      new AppError(400, "Description must be less than 500 characters")
+      new AppError(400, "Description must be less than 500 characters"),
     );
   }
 
@@ -168,7 +148,7 @@ const validateBudget = (req, res, next) => {
 
   if (name.length > 100) {
     return next(
-      new AppError(400, "Budget name must be less than 100 characters")
+      new AppError(400, "Budget name must be less than 100 characters"),
     );
   }
 
@@ -178,7 +158,7 @@ const validateBudget = (req, res, next) => {
 
   if (!period || !period.startDate || !period.endDate) {
     return next(
-      new AppError(400, "Budget period with start and end dates is required")
+      new AppError(400, "Budget period with start and end dates is required"),
     );
   }
 
@@ -195,8 +175,8 @@ const validateBudget = (req, res, next) => {
       return next(
         new AppError(
           400,
-          "Each category must include categoryId and allocated amount"
-        )
+          "Each category must include categoryId and allocated amount",
+        ),
       );
     }
 

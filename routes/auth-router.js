@@ -2,10 +2,8 @@ import express from "express";
 import userAuthController from "../controllers/userAuthController.js";
 import authUtils from "../utils/authUtils.js";
 
-import {
-  validateSignup,
-  validateLogin,
-} from "../middleware/validationMiddleware.js";
+import { validateLogin } from "../middleware/validationMiddleware.js";
+import { validateSignup } from "../middleware/validations/authValidation.js";
 
 const authRouter = express.Router();
 
@@ -17,7 +15,7 @@ authRouter
   .post(
     validateLogin,
     userAuthController.loginController,
-    authUtils.generateJWTToken
+    authUtils.generateJWTToken,
   );
 
 authRouter.route("/forgotPassword").post(userAuthController.forgotPassword);

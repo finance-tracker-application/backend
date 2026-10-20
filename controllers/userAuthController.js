@@ -9,14 +9,20 @@ import {
 import successResponse from "../utils/success-response.js";
 
 const signupController = catchAsyncFunction(async (request, response, next) => {
-  const { body } = request;
-  const findUser = await User.findOne({ userName: body.userName });
+  const { name, email, userName, password } = response.locals.validatedInput;
+  const findUser = await User.findOne({ userName: userName }).exec();
 
   if (findUser) {
     return next(new AppError(409, "User Exists"));
   }
 
-  const saveUser = new User(body);
+  const saveUser = new User({
+    name,
+    email,
+    userName,
+    password,
+    role: "user",
+  });
   const savedUser = await saveUser.save();
   if (!savedUser) {
     return next(new AppError(409, "User could not be created"));
@@ -25,13 +31,23 @@ const signupController = catchAsyncFunction(async (request, response, next) => {
   await sendEmail(
     savedUser.email,
     `User Account Created`,
-    ACCOUNT_CREATION_EMAIL(savedUser.name)
+    ACCOUNT_CREATION_EMAIL(savedUser.name),
   );
 
   const updatedPayload = savedUser.toObject();
   delete updatedPayload.password;
 
-  return successResponse(200, updatedPayload, response);
+  return successResponse(
+    201,
+    {
+      id: savedUser._id,
+      name: savedUser.name,
+      email: savedUser.email,
+      userName: savedUser.userName,
+      role: savedUser.role,
+    },
+    response,
+  );
 });
 
 const loginController = catchAsyncFunction(async (request, response, next) => {
@@ -83,7 +99,7 @@ const forgotPassword = catchAsyncFunction(async (request, response, next) => {
   await sendEmail(
     findUser.email,
     "Fin-tracker Password reset",
-    ACCOUNT_RESET(findUser.userName, resetUrl)
+    ACCOUNT_RESET(findUser.userName, resetUrl),
   );
 
   successResponse(200, { message: "Password reset link created" }, response);
@@ -93,7 +109,10 @@ const resetPassword = catchAsyncFunction(async (request, response, next) => {
   const { passwordResetToken } = request.params;
   const { password } = request.body;
   const crypto = await import("crypto");
-  const hashedToken = crypto.createHash("sha256").update(passwordResetToken).digest("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(passwordResetToken)
+    .digest("hex");
   const findUser = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gte: Date.now },
@@ -112,7 +131,7 @@ const resetPassword = catchAsyncFunction(async (request, response, next) => {
   await sendEmail(
     findUser.email,
     "Fin-tracker the Password has been reset",
-    ACCOUNT_RESET(findUser.userName, resetUrl)
+    ACCOUNT_RESET(findUser.userName, resetUrl),
   );
 
   successResponse(200, { message: "Password reset link created" }, response);
