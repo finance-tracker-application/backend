@@ -1,42 +1,5 @@
 import AppError from "../utils/AppError.js";
 
-// Validate signup data
-const validateSignup = (req, res, next) => {
-  const { name, email, userName, password } = req.body;
-
-  if (!name || !email || !userName || !password) {
-    return next(new AppError(400, "All fields are required"));
-  }
-
-  if (name.length < 2 || name.length > 50) {
-    return next(new AppError(400, "Name must be between 2 and 50 characters"));
-  }
-
-  if (!isValidEmail(email)) {
-    return next(new AppError(400, "Please provide a valid email address"));
-  }
-
-  if (!isValidUsername(userName)) {
-    return next(
-      new AppError(
-        400,
-        "Username must be 3-20 characters, alphanumeric and underscore only",
-      ),
-    );
-  }
-
-  if (!isValidPassword(password)) {
-    return next(
-      new AppError(
-        400,
-        "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number",
-      ),
-    );
-  }
-
-  next();
-};
-
 // Validate login data
 const validateLogin = (req, res, next) => {
   const { userName, password } = req.body;
@@ -196,7 +159,6 @@ const validateBudget = (req, res, next) => {
 };
 
 export {
-  validateSignup,
   validateLogin,
   validateProfileUpdate,
   validatePasswordChange,

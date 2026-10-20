@@ -32,9 +32,7 @@ beforeAll(async () => {
   const userData = {
     name: "Test User",
     userName: "testuser123",
-    email: `test_${Date.now()}@example.com`,
-    role: "user",
-    password: "TestPassword123!",
+    email: `test_${Date.now()}@example.com`,    password: "TestPassword123!",
   };
 
   await request(app).post("/fin-tracker/v1/auth/signup").send(userData);

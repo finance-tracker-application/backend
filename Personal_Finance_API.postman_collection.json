@@ -51,7 +51,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"userName\": \"johndoe123\",\n  \"email\": \"john.doe@example.com\",\n  \"role\": \"user\",\n  \"password\": \"SecurePass123!\"\n}"
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"userName\": \"johndoe123\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/signup",

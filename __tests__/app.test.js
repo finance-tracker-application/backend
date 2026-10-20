@@ -48,9 +48,7 @@ describe("testing /fin-tracker/v1/auth endpoint", () => {
     testUser = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "Assasinscreed2!",
+      email,      password: "Assasinscreed2!",
     };
   });
 
@@ -61,13 +59,13 @@ describe("testing /fin-tracker/v1/auth endpoint", () => {
 
     //console.log("Signup response:", response.body);
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(201);
     expect(response.body).toHaveProperty("dateTime");
     expect(response.body).toHaveProperty("data");
     expect(response.body.data).toHaveProperty("name", "Test User");
     expect(response.body.data).toHaveProperty("userName", userName);
     expect(response.body.data).toHaveProperty("email", email);
-    expect(response.body.data).toHaveProperty("_id");
+    expect(response.body.data).toHaveProperty("id");
   }, 10000);
 
   it("Run the login and generate the token", async () => {

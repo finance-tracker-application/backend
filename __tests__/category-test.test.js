@@ -45,9 +45,7 @@ describe("📞 Direct API Calls - Category CRUD Operations", () => {
       .send({
         name: "Category Tester",
         userName: "categorytester123",
-        email: `category_${Date.now()}@example.com`,
-        role: "user",
-        password: "TestPassword123!",
+        email: `category_${Date.now()}@example.com`,        password: "TestPassword123!",
       });
 
     console.log(
