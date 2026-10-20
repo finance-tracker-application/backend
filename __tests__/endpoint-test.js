@@ -51,18 +51,16 @@ describe("🧪 Complete API Endpoint Testing", () => {
     const userData = {
       name: "Test User",
       userName: "testuser123",
-      email: `test_${Date.now()}@example.com`,
-      role: "user",
-      password: "TestPassword123!",
+      email: `test_${Date.now()}@example.com`,      password: "TestPassword123!",
     };
 
     const response = await request(app)
       .post("/fin-tracker/v1/auth/signup")
       .send(userData);
 
-    expect(response.statusCode).toBe(200);
-    expect(response.body.data).toHaveProperty("_id");
-    testUserId = response.body.data._id;
+    expect(response.statusCode).toBe(201);
+    expect(response.body.data).toHaveProperty("id");
+    testUserId = response.body.data.id;
     console.log("✅ User registration working");
   });
 

@@ -57,9 +57,7 @@ describe("🔐 Authentication Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "TestPassword123!",
+      email,      password: "TestPassword123!",
     };
 
     const response = await request(app)
@@ -67,14 +65,14 @@ describe("🔐 Authentication Tests", () => {
       .send(userData);
 
     console.log("Signup response:", response.body);
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(201);
     expect(response.body).toHaveProperty("data");
     expect(response.body.data).toHaveProperty("name", "Test User");
     expect(response.body.data).toHaveProperty("userName", userName);
     expect(response.body.data).toHaveProperty("email", email);
-    expect(response.body.data).toHaveProperty("_id");
+    expect(response.body.data).toHaveProperty("id");
 
-    testUserId = response.body.data._id;
+    testUserId = response.body.data.id;
   });
 
   it("should login successfully and return token", async () => {
@@ -128,9 +126,7 @@ describe("👤 User Profile Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "TestPassword123!",
+      email,      password: "TestPassword123!",
     };
 
     await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
@@ -174,9 +170,7 @@ describe("💰 Transaction Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "TestPassword123!",
+      email,      password: "TestPassword123!",
     };
 
     await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
@@ -233,9 +227,7 @@ describe("📂 Category Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "TestPassword123!",
+      email,      password: "TestPassword123!",
     };
 
     await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
@@ -289,9 +281,7 @@ describe("💼 Budget Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,
-      role: "user",
-      password: "TestPassword123!",
+      email,      password: "TestPassword123!",
     };
 
     await request(app).post("/fin-tracker/v1/auth/signup").send(userData);

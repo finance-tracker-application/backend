@@ -24,18 +24,12 @@ const signupController = catchAsyncFunction(async (request, response, next) => {
     role: "user",
   });
   const savedUser = await saveUser.save();
-  if (!savedUser) {
-    return next(new AppError(409, "User could not be created"));
-  }
 
   await sendEmail(
     savedUser.email,
     `User Account Created`,
     ACCOUNT_CREATION_EMAIL(savedUser.name),
   );
-
-  const updatedPayload = savedUser.toObject();
-  delete updatedPayload.password;
 
   return successResponse(
     201,
