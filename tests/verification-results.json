@@ -1,0 +1,208 @@
+{
+  "date": "2026-10-21",
+  "node": "v22.21.0",
+  "runs": [
+    {
+      "name": "app.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/app.integration.test.js --runInBand",
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "suitesPassed": 1,
+      "suitesFailed": 0,
+      "failures": [],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "basic-api.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/basic-api.integration.test.js --runInBand",
+      "exitCode": 1,
+      "passed": 11,
+      "failed": 4,
+      "total": 15,
+      "suitesPassed": 0,
+      "suitesFailed": 1,
+      "failures": [
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should create a transaction successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 201\nReceived: 400\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:227:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should get all transactions successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:241:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Category Tests should get all categories successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:298:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Budget Tests should get all budgets successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:338:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        }
+      ],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "budgets.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/budgets.integration.test.js --runInBand",
+      "exitCode": 0,
+      "passed": 59,
+      "failed": 0,
+      "total": 59,
+      "suitesPassed": 1,
+      "suitesFailed": 0,
+      "failures": [],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "categories.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/categories.integration.test.js --runInBand",
+      "exitCode": 0,
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "suitesPassed": 1,
+      "suitesFailed": 0,
+      "failures": [],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "endpoints.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/endpoints.integration.test.js --runInBand",
+      "exitCode": 1,
+      "passed": 23,
+      "failed": 2,
+      "total": 25,
+      "suitesPassed": 0,
+      "suitesFailed": 1,
+      "failures": [
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  PUT /fin-tracker/v1/users/profile - Update user profile",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:146:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  DELETE /fin-tracker/v1/transactions/:id - Delete transaction",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 204\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:350:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        }
+      ],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "signup.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/signup.integration.test.js --runInBand",
+      "exitCode": 0,
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "suitesPassed": 1,
+      "suitesFailed": 0,
+      "failures": [],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "transactions.integration.test.js",
+      "command": "node node_modules/jest/bin/jest.js --runTestsByPath tests/integration/transactions.integration.test.js --runInBand",
+      "exitCode": 0,
+      "passed": 49,
+      "failed": 0,
+      "total": 49,
+      "suitesPassed": 1,
+      "suitesFailed": 0,
+      "failures": [],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "serial",
+      "command": "node node_modules/jest/bin/jest.js --runInBand",
+      "exitCode": 1,
+      "passed": 167,
+      "failed": 6,
+      "total": 173,
+      "suitesPassed": 5,
+      "suitesFailed": 2,
+      "failures": [
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  PUT /fin-tracker/v1/users/profile - Update user profile",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:146:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  DELETE /fin-tracker/v1/transactions/:id - Delete transaction",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 204\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:350:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should create a transaction successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 201\nReceived: 400\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:227:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should get all transactions successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:241:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Category Tests should get all categories successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:298:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Budget Tests should get all budgets successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:338:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        }
+      ],
+      "obsoleteOptionWarning": false
+    },
+    {
+      "name": "parallel",
+      "command": "node node_modules/jest/bin/jest.js --maxWorkers=2",
+      "exitCode": 1,
+      "passed": 167,
+      "failed": 6,
+      "total": 173,
+      "suitesPassed": 5,
+      "suitesFailed": 2,
+      "failures": [
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should create a transaction successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 201\nReceived: 400\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:227:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Transaction Tests should get all transactions successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:241:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Category Tests should get all categories successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:298:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "basic-api.integration.test.js",
+          "test": " Budget Tests should get all budgets successfully",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\basic-api.integration.test.js:338:47)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  PUT /fin-tracker/v1/users/profile - Update user profile",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:146:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        },
+        {
+          "suite": "endpoints.integration.test.js",
+          "test": " Complete API Endpoint Testing  DELETE /fin-tracker/v1/transactions/:id - Delete transaction",
+          "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 204\nReceived: 500\n    at Object.toBe (C:\\Users\\nihil\\Documents\\Github\\Projects\\fin-tracker\\backend\\tests\\integration\\endpoints.integration.test.js:350:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+        }
+      ],
+      "obsoleteOptionWarning": false
+    }
+  ]
+}

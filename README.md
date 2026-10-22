@@ -2,9 +2,9 @@
 
 A comprehensive financial tracking backend API with advanced security features, transaction management, and budget planning capabilities. This API provides everything needed to build a full-featured personal finance management application.
 
-## 🚀 Features
+##  Features
 
-### 🔐 Security & Authentication
+###  Security & Authentication
 
 - **JWT Authentication** with refresh tokens
 - **Advanced Security Headers** (CSP, CORS, Helmet)
@@ -13,7 +13,7 @@ A comprehensive financial tracking backend API with advanced security features, 
 - **Input Validation** & Sanitization
 - **XSS Protection** & NoSQL Injection Prevention
 
-### 💰 Financial Management
+###  Financial Management
 
 - **Transaction Tracking** (Income, Expense, Transfer)
 - **Budget Planning** with real-time tracking
@@ -22,7 +22,7 @@ A comprehensive financial tracking backend API with advanced security features, 
 - **Advanced Analytics** & Insights
 - **Bulk Import/Export** functionality
 
-### 📊 Analytics & Insights
+###  Analytics & Insights
 
 - **Spending Patterns** analysis
 - **Category Breakdowns** with visualizations
@@ -30,7 +30,7 @@ A comprehensive financial tracking backend API with advanced security features, 
 - **Monthly/Yearly Trends**
 - **Smart Alerts** & Notifications
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 - **Runtime**: Node.js
 - **Framework**: Express.js
@@ -40,13 +40,13 @@ A comprehensive financial tracking backend API with advanced security features, 
 - **Validation**: Custom middleware
 - **Testing**: Jest + Supertest
 
-## 📋 Prerequisites
+##  Prerequisites
 
 - Node.js (v16 or higher)
 - MongoDB (local or cloud)
 - npm or yarn
 
-## ⚙️ Installation & Setup
+##  Installation & Setup
 
 ### 1. Clone and Install
 
@@ -100,7 +100,7 @@ npm start
 
 The API will be available at: `http://localhost:9000/fin-tracker/v1`
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 ### Base URL
 
@@ -118,42 +118,23 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 🔐 Authentication Endpoints
+##  Authentication Endpoints
 
 ### POST `/auth/signup`
 
-**Purpose**: Register a new user account
-
-**Request Body:**
+Accepts only `name`, `email`, `userName` and `password`. Unknown or protected fields return `400`. The server assigns role `user`.
 
 ```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "userName": "johndoe",
-  "password": "Password123"
-}
+{"name":"John Doe","email":"john@example.com","userName":"johndoe","password":"Password123"}
 ```
 
-**Response:**
+Returns **201 Created**:
 
 ```json
-{
-  "status": "success",
-  "data": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "userName": "johndoe",
-    "role": "user",
-    "createdAt": "2024-01-01T00:00:00.000Z"
-  }
-}
+{"dateTime":"2026-10-19T12:00:00.000Z","data":{"id":"507f1f77bcf86cd799439011","name":"John Doe","email":"john@example.com","userName":"johndoe","role":"user"}}
 ```
 
-**Frontend Usage**: Registration form, user onboarding
-
----
+Client migration: expect 201 instead of 200, read `data.id` instead of `data._id`, and omit role/internal fields. The current API uses `userName`; `username` is not an accepted alias. See [signup contract and test instructions](docs/signup.md).
 
 ### POST `/auth/login`
 
@@ -270,7 +251,7 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 👤 User Management Endpoints
+##  User Management Endpoints
 
 ### GET `/users/profile`
 
@@ -371,7 +352,7 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 💰 Transaction Management Endpoints
+##  Transaction Management Endpoints
 
 ### POST `/transactions`
 
@@ -608,7 +589,7 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 📊 Budget Management Endpoints
+##  Budget Management Endpoints
 
 ### POST `/budgets`
 
@@ -878,7 +859,7 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 🎨 Frontend Development Guide
+##  Frontend Development Guide
 
 ### Recommended Frontend Stack
 
@@ -963,7 +944,7 @@ All endpoints return consistent error responses:
 - Validate all inputs
 - Implement proper error handling
 
-## 🧪 Testing
+##  Testing
 
 ```bash
 # Run tests
@@ -973,13 +954,13 @@ npm test
 npm run coverage
 ```
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - **API Documentation**: See `API_DOCUMENTATION.md` for detailed endpoint documentation
 - **Environment Setup**: Copy `env.example` to `.env` and configure
 - **Database Schema**: Check `models/` directory for data structures
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -987,7 +968,7 @@ npm run coverage
 4. Add tests
 5. Submit a pull request
 
-## 📄 License
+##  License
 
 ISC License
 

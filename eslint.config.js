@@ -15,8 +15,8 @@ export default defineConfig([
       },
     },
     rules: {
-      "no-unused-vars": "off", // 👈 disables unused vars check
-      "no-undef": "off", // 👈 disables undefined vars check
+      "no-unused-vars": "off", //  disables unused vars check
+      "no-undef": "off", //  disables undefined vars check
     },
   },
 ]);

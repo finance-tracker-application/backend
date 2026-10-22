@@ -147,7 +147,7 @@ const securityConfig = {
     noSniff: true,
     permittedCrossDomainPolicies: { permittedPolicies: "none" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    // xssFilter: true, // ❌ deprecated in helmet; remove to avoid warnings
+    // xssFilter: true, //  deprecated in helmet; remove to avoid warnings
   },
 };
 

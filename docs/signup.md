@@ -18,7 +18,7 @@ Successful registration returns `201` with `{dateTime, data: {id, name, email, u
 Run `npm ci`, then:
 
 ```sh
-npm test -- --runTestsByPath __tests__/signup.integration.test.js --runInBand
+npm test -- --runTestsByPath tests/integration/signup.integration.test.js --runInBand
 ```
 
 The suite starts a disposable MongoDB process, mocks the exact email module used by the controller, and verifies HTTP and persisted state. The first run may download a MongoDB binary. Each test resets the local test client's actual limiter counters; production limit configuration is unchanged. Limiter behavior itself belongs to FT-037.

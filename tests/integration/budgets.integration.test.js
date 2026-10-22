@@ -1,18 +1,21 @@
 // Budget Routes Testing
-process.env.NODE_ENV = "test";
 import request from "supertest";
-import mongoose from "mongoose";
-import app from "../app.js";
-import path from "path";
-import dotenv from "dotenv";
+import app from "../../app.js";
+import sendEmail from "../../config/notification-config.js";
+import { securityConfig } from "../../config/security.js";
 
-// Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+import {
+  startTestDatabase,
+  clearTestDatabase,
+  stopTestDatabase,
+} from "../helpers/database.js";
+jest.mock("../../config/notification-config.js", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 // Increase Jest timeout
-jest.setTimeout(30000);
-
-const testMONGOdb = `mongodb://127.0.0.1:27017/testfin-trackerDB`;
+jest.setTimeout(120000);
 
 let authToken;
 let budgetId;
@@ -23,25 +26,44 @@ let budgetData1Id;
 let budgetData2Id;
 
 beforeAll(async () => {
-  if (!testMONGOdb) {
-    throw new Error("❌ Missing testMONGOdb environment variable");
+  await startTestDatabase();
+});
+
+beforeEach(async () => {
+  await clearTestDatabase();
+
+  for (const ip of ["127.0.0.1", "::ffff:127.0.0.1", "::1"]) {
+    securityConfig.authLimiter.resetKey(ip);
+    securityConfig.generalLimiter.resetKey(ip);
   }
-  await mongoose.connect(testMONGOdb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  sendEmail.mockReset();
+  sendEmail.mockResolvedValue(undefined);
+
+  authToken = undefined;
+  budgetId = undefined;
+  categoryId1 = undefined;
+  categoryId2 = undefined;
+  categoryId3 = undefined;
+  budgetData1Id = undefined;
+  budgetData2Id = undefined;
+
   const userData = {
     name: "Test User",
     userName: "testuser123",
-    email: `test_${Date.now()}@example.com`,    password: "TestPassword123!",
+    email: "budget-test@example.com",
+    password: "TestPassword123!",
   };
 
-  await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+  const signupResponse = await request(app)
+    .post("/fin-tracker/v1/auth/signup")
+    .send(userData);
+  expect(signupResponse.statusCode).toBe(201);
 
   //making api call to set authToken
   const userResponse = await request(app)
     .post("/fin-tracker/v1/auth/login")
     .send(userData);
+  expect(userResponse.statusCode).toBe(200);
   authToken = userResponse.body.data.token;
 
   //creating expense categories for budget testing
@@ -56,6 +78,7 @@ beforeAll(async () => {
     .set("Authorization", `Bearer ${authToken}`)
     .send(categoryData1);
 
+  expect(categoryResponse1.statusCode).toBe(201);
   categoryId1 = categoryResponse1.body.data._id;
 
   const categoryData2 = {
@@ -69,6 +92,7 @@ beforeAll(async () => {
     .set("Authorization", `Bearer ${authToken}`)
     .send(categoryData2);
 
+  expect(categoryResponse2.statusCode).toBe(201);
   categoryId2 = categoryResponse2.body.data._id;
 
   const categoryData3 = {
@@ -82,6 +106,7 @@ beforeAll(async () => {
     .set("Authorization", `Bearer ${authToken}`)
     .send(categoryData3);
 
+  expect(categoryResponse3.statusCode).toBe(201);
   categoryId3 = categoryResponse3.body.data._id;
 
   //creating 2 budgets to be stored for fetch all and get test cases
@@ -116,7 +141,7 @@ beforeAll(async () => {
   if (budgetResponse1.statusCode !== 201) {
     console.log("Budget creation failed:", budgetResponse1.body);
     throw new Error(
-      `Budget creation failed: ${JSON.stringify(budgetResponse1.body)}`
+      `Budget creation failed: ${JSON.stringify(budgetResponse1.body)}`,
     );
   }
 
@@ -153,7 +178,7 @@ beforeAll(async () => {
   if (budgetResponse2.statusCode !== 201) {
     console.log("Budget creation failed:", budgetResponse2.body);
     throw new Error(
-      `Budget creation failed: ${JSON.stringify(budgetResponse2.body)}`
+      `Budget creation failed: ${JSON.stringify(budgetResponse2.body)}`,
     );
   }
 
@@ -161,18 +186,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up test data
-  if (process.env.NODE_ENV === "test") {
-    await mongoose.connection.dropDatabase();
-  }
-  await mongoose.connection.close();
+  await stopTestDatabase();
 });
 
 describe("Budget API Test Suite", () => {
   // ==================== CREATE BUDGET TESTS ====================
   describe("POST /fin-tracker/v1/budgets - Create Budget", () => {
     // POSITIVE TEST CASES
-    it("✅ Should create a monthly budget successfully", async () => {
+    it(" Should create a monthly budget successfully", async () => {
       const budgetData = {
         name: "Test Monthly Budget",
         type: "monthly",
@@ -213,7 +234,7 @@ describe("Budget API Test Suite", () => {
       budgetId = response.body.data._id;
     });
 
-    it("✅ Should create a yearly budget successfully", async () => {
+    it(" Should create a yearly budget successfully", async () => {
       const budgetData = {
         name: "Test Yearly Budget",
         type: "yearly",
@@ -249,7 +270,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.totalBudget).toBe(7000);
     });
 
-    it("✅ Should create a custom budget successfully", async () => {
+    it(" Should create a custom budget successfully", async () => {
       const budgetData = {
         name: "Test Custom Budget",
         type: "custom",
@@ -290,7 +311,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.tags).toContain("savings");
     });
 
-    it("✅ Should create budget with minimum required fields", async () => {
+    it(" Should create budget with minimum required fields", async () => {
       const budgetData = {
         name: "Minimal Budget",
         period: {
@@ -318,7 +339,7 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when name is missing", async () => {
+    it(" Should fail when name is missing", async () => {
       const budgetData = {
         period: {
           startDate: new Date("2024-01-01"),
@@ -342,7 +363,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget name is required");
     });
 
-    it("❌ Should fail when name is not a string", async () => {
+    it(" Should fail when name is not a string", async () => {
       const budgetData = {
         name: 123,
         period: {
@@ -366,7 +387,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.status).toBe("error");
     });
 
-    it("❌ Should fail when period is missing", async () => {
+    it(" Should fail when period is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         categories: [
@@ -385,11 +406,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Budget period with start and end dates is required"
+        "Budget period with start and end dates is required",
       );
     });
 
-    it("❌ Should fail when startDate is missing", async () => {
+    it(" Should fail when startDate is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -411,11 +432,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Budget period with start and end dates is required"
+        "Budget period with start and end dates is required",
       );
     });
 
-    it("❌ Should fail when endDate is missing", async () => {
+    it(" Should fail when endDate is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -437,11 +458,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Budget period with start and end dates is required"
+        "Budget period with start and end dates is required",
       );
     });
 
-    it("❌ Should fail when endDate is not after startDate", async () => {
+    it(" Should fail when endDate is not after startDate", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -466,7 +487,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("End date must be after start date");
     });
 
-    it("❌ Should fail when categories array is missing", async () => {
+    it(" Should fail when categories array is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -485,7 +506,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("At least one category is required");
     });
 
-    it("❌ Should fail when categories array is empty", async () => {
+    it(" Should fail when categories array is empty", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -505,7 +526,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("At least one category is required");
     });
 
-    it("❌ Should fail when categoryId is missing", async () => {
+    it(" Should fail when categoryId is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -527,11 +548,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Each category must include categoryId and allocated amount"
+        "Each category must include categoryId and allocated amount",
       );
     });
 
-    it("❌ Should fail when allocatedAmount is missing", async () => {
+    it(" Should fail when allocatedAmount is missing", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -553,11 +574,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Each category must include categoryId and allocated amount"
+        "Each category must include categoryId and allocated amount",
       );
     });
 
-    it("❌ Should fail when allocatedAmount is zero", async () => {
+    it(" Should fail when allocatedAmount is zero", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -580,11 +601,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Allocated amount must be greater than 0"
+        "Allocated amount must be greater than 0",
       );
     });
 
-    it("❌ Should fail when allocatedAmount is negative", async () => {
+    it(" Should fail when allocatedAmount is negative", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -607,11 +628,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Allocated amount must be greater than 0"
+        "Allocated amount must be greater than 0",
       );
     });
 
-    it("❌ Should fail when duplicate categoryId is provided", async () => {
+    it(" Should fail when duplicate categoryId is provided", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -640,7 +661,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("duplicate Categoryid is not allowed");
     });
 
-    it("❌ Should fail when invalid categoryId is provided", async () => {
+    it(" Should fail when invalid categoryId is provided", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -664,7 +685,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.status).toBe("error");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -690,7 +711,7 @@ describe("Budget API Test Suite", () => {
   // ==================== GET ALL BUDGETS TESTS ====================
   describe("GET /fin-tracker/v1/budgets - Get All Budgets", () => {
     // POSITIVE TEST CASES
-    it("✅ Should fetch all budgets successfully", async () => {
+    it(" Should fetch all budgets successfully", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets")
         .set("Authorization", `Bearer ${authToken}`);
@@ -705,7 +726,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.pagination).toHaveProperty("pages");
     });
 
-    it("✅ Should fetch budgets with pagination", async () => {
+    it(" Should fetch budgets with pagination", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?page=1&limit=5")
         .set("Authorization", `Bearer ${authToken}`);
@@ -716,7 +737,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.budgets.length).toBeLessThanOrEqual(5);
     });
 
-    it("✅ Should fetch budgets with status filter", async () => {
+    it(" Should fetch budgets with status filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?status=active")
         .set("Authorization", `Bearer ${authToken}`);
@@ -727,7 +748,7 @@ describe("Budget API Test Suite", () => {
       });
     });
 
-    it("✅ Should fetch budgets with type filter", async () => {
+    it(" Should fetch budgets with type filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?type=monthly")
         .set("Authorization", `Bearer ${authToken}`);
@@ -738,7 +759,7 @@ describe("Budget API Test Suite", () => {
       });
     });
 
-    it("✅ Should fetch budgets with multiple filters", async () => {
+    it(" Should fetch budgets with multiple filters", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?status=active&type=monthly")
         .set("Authorization", `Bearer ${authToken}`);
@@ -751,13 +772,13 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).get("/fin-tracker/v1/budgets");
 
       expect(response.statusCode).toBe(401);
     });
 
-    it("❌ Should fail with invalid status filter", async () => {
+    it(" Should fail with invalid status filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?status=invalid_status")
         .set("Authorization", `Bearer ${authToken}`);
@@ -767,7 +788,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Invalid status filter");
     });
 
-    it("❌ Should fail with invalid type filter", async () => {
+    it(" Should fail with invalid type filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets?type=invalid_type")
         .set("Authorization", `Bearer ${authToken}`);
@@ -781,7 +802,7 @@ describe("Budget API Test Suite", () => {
   // ==================== GET BUDGET BY ID TESTS ====================
   describe("GET /fin-tracker/v1/budgets/:id - Get Budget By ID", () => {
     // POSITIVE TEST CASES
-    it("✅ Should fetch a specific budget successfully", async () => {
+    it(" Should fetch a specific budget successfully", async () => {
       const response = await request(app)
         .get(`/fin-tracker/v1/budgets/${budgetData1Id}`)
         .set("Authorization", `Bearer ${authToken}`);
@@ -798,7 +819,7 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when budget ID is missing", async () => {
+    it(" Should fail when budget ID is missing", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets/")
         .set("Authorization", `Bearer ${authToken}`);
@@ -807,7 +828,7 @@ describe("Budget API Test Suite", () => {
       expect(Array.isArray(response.body.data.budgets)).toBe(true);
     });
 
-    it("❌ Should fail when budget ID is invalid format", async () => {
+    it(" Should fail when budget ID is invalid format", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets/invalid_id")
         .set("Authorization", `Bearer ${authToken}`);
@@ -815,7 +836,7 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(500);
     });
 
-    it("❌ Should fail when budget is not found", async () => {
+    it(" Should fail when budget is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const response = await request(app)
         .get(`/fin-tracker/v1/budgets/${fakeId}`)
@@ -826,9 +847,9 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget not found");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).get(
-        `/fin-tracker/v1/budgets/${budgetData1Id}`
+        `/fin-tracker/v1/budgets/${budgetData1Id}`,
       );
 
       expect(response.statusCode).toBe(401);
@@ -838,7 +859,7 @@ describe("Budget API Test Suite", () => {
   // ==================== UPDATE BUDGET TESTS ====================
   describe("PATCH /fin-tracker/v1/budgets/:id - Update Budget", () => {
     // POSITIVE TEST CASES
-    it("✅ Should update budget successfully", async () => {
+    it(" Should update budget successfully", async () => {
       const updateData = {
         name: "Updated Budget Name",
         notes: "Updated budget notes",
@@ -854,7 +875,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.notes).toBe("Updated budget notes");
     });
 
-    it("✅ Should update budget period successfully", async () => {
+    it(" Should update budget period successfully", async () => {
       const updateData = {
         period: {
           startDate: new Date("2024-02-01"),
@@ -869,14 +890,14 @@ describe("Budget API Test Suite", () => {
 
       expect(response.statusCode).toBe(200);
       expect(new Date(response.body.data.period.startDate)).toEqual(
-        new Date("2024-02-01")
+        new Date("2024-02-01"),
       );
       expect(new Date(response.body.data.period.endDate)).toEqual(
-        new Date("2024-02-29")
+        new Date("2024-02-29"),
       );
     });
 
-    it("✅ Should update budget categories successfully", async () => {
+    it(" Should update budget categories successfully", async () => {
       const updateData = {
         categories: [
           {
@@ -903,7 +924,7 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when budget ID is missing", async () => {
+    it(" Should fail when budget ID is missing", async () => {
       const updateData = {
         name: "Updated Name",
       };
@@ -916,7 +937,7 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("❌ Should fail when budget is not found", async () => {
+    it(" Should fail when budget is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const updateData = {
         name: "Updated Name",
@@ -932,7 +953,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget not found");
     });
 
-    it("❌ Should fail when period endDate is not after startDate", async () => {
+    it(" Should fail when period endDate is not after startDate", async () => {
       const updateData = {
         period: {
           startDate: new Date("2024-03-31"),
@@ -950,7 +971,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("End date must be after start date");
     });
 
-    it("❌ Should fail when type is invalid", async () => {
+    it(" Should fail when type is invalid", async () => {
       const updateData = {
         type: "invalid_type",
       };
@@ -965,7 +986,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Invalid budget type");
     });
 
-    it("❌ Should fail when duplicate categories are provided", async () => {
+    it(" Should fail when duplicate categories are provided", async () => {
       const updateData = {
         categories: [
           {
@@ -987,11 +1008,11 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(422);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Duplicate categories are not allowed"
+        "Duplicate categories are not allowed",
       );
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const updateData = {
         name: "Updated Name",
       };
@@ -1007,7 +1028,7 @@ describe("Budget API Test Suite", () => {
   // ==================== DELETE BUDGET TESTS ====================
   describe("DELETE /fin-tracker/v1/budgets/:id - Delete Budget", () => {
     // POSITIVE TEST CASES
-    it("✅ Should delete budget successfully", async () => {
+    it(" Should delete budget successfully", async () => {
       // First create a budget to delete
       const budgetData = {
         name: "Budget to Delete",
@@ -1038,7 +1059,7 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when budget ID is missing", async () => {
+    it(" Should fail when budget ID is missing", async () => {
       const response = await request(app)
         .delete("/fin-tracker/v1/budgets/")
         .set("Authorization", `Bearer ${authToken}`);
@@ -1046,7 +1067,7 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("❌ Should fail when budget is not found", async () => {
+    it(" Should fail when budget is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const response = await request(app)
         .delete(`/fin-tracker/v1/budgets/${fakeId}`)
@@ -1057,9 +1078,9 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget not found");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).delete(
-        `/fin-tracker/v1/budgets/${budgetData1Id}`
+        `/fin-tracker/v1/budgets/${budgetData1Id}`,
       );
 
       expect(response.statusCode).toBe(401);
@@ -1069,7 +1090,7 @@ describe("Budget API Test Suite", () => {
   // ==================== BUDGET ANALYTICS TESTS ====================
   describe("GET /fin-tracker/v1/budgets/:budgetId/analytics - Get Budget Analytics", () => {
     // POSITIVE TEST CASES
-    it("✅ Should fetch budget analytics successfully", async () => {
+    it(" Should fetch budget analytics successfully", async () => {
       const response = await request(app)
         .get(`/fin-tracker/v1/budgets/${budgetData1Id}/analytics`)
         .set("Authorization", `Bearer ${authToken}`);
@@ -1087,7 +1108,7 @@ describe("Budget API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when budget ID is missing", async () => {
+    it(" Should fail when budget ID is missing", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/budgets//analytics")
         .set("Authorization", `Bearer ${authToken}`);
@@ -1095,7 +1116,7 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("❌ Should fail when budget is not found", async () => {
+    it(" Should fail when budget is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const response = await request(app)
         .get(`/fin-tracker/v1/budgets/${fakeId}/analytics`)
@@ -1106,9 +1127,9 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget not found");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).get(
-        `/fin-tracker/v1/budgets/${budgetData1Id}/analytics`
+        `/fin-tracker/v1/budgets/${budgetData1Id}/analytics`,
       );
 
       expect(response.statusCode).toBe(401);
@@ -1117,7 +1138,7 @@ describe("Budget API Test Suite", () => {
 
   // ==================== EDGE CASES AND ERROR SCENARIOS ====================
   describe("Edge Cases and Error Scenarios", () => {
-    it("❌ Should fail when body is empty", async () => {
+    it(" Should fail when body is empty", async () => {
       const response = await request(app)
         .post("/fin-tracker/v1/budgets")
         .set("Authorization", `Bearer ${authToken}`)
@@ -1128,7 +1149,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.message).toBe("Budget name is required");
     });
 
-    it("❌ Should fail when user token is invalid", async () => {
+    it(" Should fail when user token is invalid", async () => {
       const budgetData = {
         name: "Test Budget",
         period: {
@@ -1151,7 +1172,7 @@ describe("Budget API Test Suite", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("✅ Should handle very large allocated amounts", async () => {
+    it(" Should handle very large allocated amounts", async () => {
       const budgetData = {
         name: "Large Budget",
         period: {
@@ -1175,7 +1196,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.totalBudget).toBe(999999999);
     });
 
-    it("✅ Should handle very small allocated amounts", async () => {
+    it(" Should handle very small allocated amounts", async () => {
       const budgetData = {
         name: "Small Budget",
         period: {
@@ -1199,7 +1220,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.totalBudget).toBe(0.01);
     });
 
-    it("✅ Should handle special characters in budget name", async () => {
+    it(" Should handle special characters in budget name", async () => {
       const budgetData = {
         name: "Budget with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?",
         period: {
@@ -1223,9 +1244,9 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.name).toBe(budgetData.name);
     });
 
-    it("✅ Should handle unicode characters in budget name", async () => {
+    it(" Should handle unicode characters in budget name", async () => {
       const budgetData = {
-        name: "Budget with unicode: 🚀💰💳🎯",
+        name: "Budget with unicode: ",
         period: {
           startDate: new Date("2024-01-01"),
           endDate: new Date("2024-01-31"),
@@ -1247,7 +1268,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.name).toBe(budgetData.name);
     });
 
-    it("✅ Should handle long budget names", async () => {
+    it(" Should handle long budget names", async () => {
       const longName = "a".repeat(100);
       const budgetData = {
         name: longName,
@@ -1272,7 +1293,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.data.name).toBe(longName);
     });
 
-    it("❌ Should fail when budget name exceeds maximum length", async () => {
+    it(" Should fail when budget name exceeds maximum length", async () => {
       const longName = "a".repeat(101); // exceeds maxlength of 100
       const budgetData = {
         name: longName,
@@ -1297,7 +1318,7 @@ describe("Budget API Test Suite", () => {
       expect(response.body.status).toBe("Fail");
     });
 
-    it("✅ Should handle multiple currencies", async () => {
+    it(" Should handle multiple currencies", async () => {
       const currencies = ["USD", "EUR", "GBP", "INR", "CAD", "AUD"];
 
       for (const currency of currencies) {
@@ -1326,7 +1347,7 @@ describe("Budget API Test Suite", () => {
       }
     });
 
-    it("❌ Should fail with invalid currency", async () => {
+    it(" Should fail with invalid currency", async () => {
       const budgetData = {
         name: "Invalid Currency Budget",
         period: {
