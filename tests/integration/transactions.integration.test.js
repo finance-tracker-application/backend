@@ -1,18 +1,22 @@
 // Transaction Routes Testing
-process.env.NODE_ENV = "test";
 import request from "supertest";
 import mongoose from "mongoose";
-import app from "../app.js";
-import path from "path";
-import dotenv from "dotenv";
+import app from "../../app.js";
+import sendEmail from "../../config/notification-config.js";
+import { securityConfig } from "../../config/security.js";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+} from "../helpers/database.js";
 
-// Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+// Setup creates an account; never send real email from this suite.
+jest.mock("../../config/notification-config.js", () => ({
+  __esModule: true,
+  default: jest.fn().mockResolvedValue(undefined),
+}));
 
 // Increase Jest timeout
-jest.setTimeout(30000);
-
-const testMONGOdb = `mongodb://127.0.0.1:27017/testfin-trackerDB`;
+jest.setTimeout(120000);
 
 let authToken;
 let transactionId;
@@ -21,18 +25,24 @@ let incomeCategoryId;
 let transactionData1Id;
 let transactionData2Id;
 
-beforeAll(async () => {
-  if (!testMONGOdb) {
-    throw new Error("❌ Missing testMONGOdb environment variable");
+beforeEach(() => {
+  // Keep the real limiters active, with a fresh allowance for each scenario.
+  for (const ip of ["127.0.0.1", "::ffff:127.0.0.1", "::1"]) {
+    securityConfig.authLimiter.resetKey(ip);
+    securityConfig.generalLimiter.resetKey(ip);
   }
-  await mongoose.connect(testMONGOdb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+
+  sendEmail.mockReset();
+  sendEmail.mockResolvedValue(undefined);
+});
+
+beforeAll(async () => {
+  await startTestDatabase();
   const userData = {
     name: "Test User",
     userName: "testuser123",
-    email: `test_${Date.now()}@example.com`,    password: "TestPassword123!",
+    email: `test_${Date.now()}@example.com`,
+    password: "TestPassword123!",
   };
 
   await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
@@ -102,18 +112,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up test data
-  if (process.env.NODE_ENV === "test") {
-    await mongoose.connection.dropDatabase();
-  }
-  await mongoose.connection.close();
+  await stopTestDatabase();
 });
 
 describe("Transaction API Test Suite", () => {
   // ==================== CREATE TRANSACTION TESTS ====================
   describe("POST /fin-tracker/v1/transactions - Create Transaction", () => {
     // POSITIVE TEST CASES
-    it("✅ Should create an expense transaction successfully", async () => {
+    it(" Should create an expense transaction successfully", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -138,7 +144,7 @@ describe("Transaction API Test Suite", () => {
       transactionId = response.body.data._id;
     });
 
-    it("✅ Should create an income transaction successfully", async () => {
+    it(" Should create an income transaction successfully", async () => {
       const transactionData = {
         type: "income",
         amount: 2500.0,
@@ -157,7 +163,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.categoryId).toBe(incomeCategoryId);
     });
 
-    it("✅ Should create a transfer transaction successfully", async () => {
+    it(" Should create a transfer transaction successfully", async () => {
       const transactionData = {
         type: "transfer",
         amount: 100.0,
@@ -174,7 +180,7 @@ describe("Transaction API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when type is missing", async () => {
+    it(" Should fail when type is missing", async () => {
       const transactionData = {
         amount: 45.99,
         categoryId: categoryId,
@@ -191,7 +197,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid transaction type is required");
     });
 
-    it("❌ Should fail when type is invalid", async () => {
+    it(" Should fail when type is invalid", async () => {
       const transactionData = {
         type: "invalid_type",
         amount: 45.99,
@@ -209,7 +215,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid transaction type is required");
     });
 
-    it("❌ Should fail when categoryId is missing for expense/income", async () => {
+    it(" Should fail when categoryId is missing for expense/income", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -226,7 +232,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Category is required");
     });
 
-    it("❌ Should fail when amount is missing", async () => {
+    it(" Should fail when amount is missing", async () => {
       const transactionData = {
         type: "expense",
         categoryId: categoryId,
@@ -243,7 +249,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid amount is required");
     });
 
-    it("❌ Should fail when amount is negative", async () => {
+    it(" Should fail when amount is negative", async () => {
       const transactionData = {
         type: "expense",
         amount: -45.99,
@@ -261,7 +267,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid amount is required");
     });
 
-    it("❌ Should fail when amount is zero", async () => {
+    it(" Should fail when amount is zero", async () => {
       const transactionData = {
         type: "expense",
         amount: 0,
@@ -279,7 +285,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid amount is required");
     });
 
-    it("❌ Should fail when note is missing", async () => {
+    it(" Should fail when note is missing", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -296,7 +302,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Description is required");
     });
 
-    it("❌ Should fail when note is empty", async () => {
+    it(" Should fail when note is empty", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -314,7 +320,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Description is required");
     });
 
-    it("❌ Should fail when note exceeds 500 characters", async () => {
+    it(" Should fail when note exceeds 500 characters", async () => {
       const longNote = "a".repeat(501);
       const transactionData = {
         type: "expense",
@@ -331,11 +337,11 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(400);
       expect(response.body.status).toBe("Fail");
       expect(response.body.message).toBe(
-        "Description must be less than 500 characters"
+        "Description must be less than 500 characters",
       );
     });
 
-    it("❌ Should fail when categoryId is invalid", async () => {
+    it(" Should fail when categoryId is invalid", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -351,7 +357,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(500);
       expect(response.body.status).toBe("error");
       expect(response.body.message).toBe(
-        'Cast to ObjectId failed for value "invalid_category_id" (type string) at path "_id" for model "Category"'
+        'Cast to ObjectId failed for value "invalid_category_id" (type string) at path "_id" for model "Category"',
       );
     });
   });
@@ -359,7 +365,7 @@ describe("Transaction API Test Suite", () => {
   // ==================== GET ALL TRANSACTIONS TESTS ====================
   describe("GET /fin-tracker/v1/transactions - Get All Transactions", () => {
     // POSITIVE TEST CASES
-    it("✅ Should fetch all transactions successfully", async () => {
+    it(" Should fetch all transactions successfully", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions")
         .set("Authorization", `Bearer ${authToken}`);
@@ -372,7 +378,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data).toHaveProperty("filters");
     });
 
-    it("✅ Should fetch transactions with pagination", async () => {
+    it(" Should fetch transactions with pagination", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?page=1&limit=5")
         .set("Authorization", `Bearer ${authToken}`);
@@ -383,7 +389,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.transactions.length).toBeLessThanOrEqual(5);
     });
 
-    it("✅ Should fetch transactions with type filter", async () => {
+    it(" Should fetch transactions with type filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?type=expense")
         .set("Authorization", `Bearer ${authToken}`);
@@ -394,7 +400,7 @@ describe("Transaction API Test Suite", () => {
       });
     });
 
-    it("✅ Should fetch transactions with amount range filter", async () => {
+    it(" Should fetch transactions with amount range filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?minAmount=40&maxAmount=50")
         .set("Authorization", `Bearer ${authToken}`);
@@ -406,20 +412,20 @@ describe("Transaction API Test Suite", () => {
       });
     });
 
-    it("✅ Should fetch transactions with date range filter", async () => {
+    it(" Should fetch transactions with date range filter", async () => {
       const today = new Date();
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
       const response = await request(app)
         .get(
-          `/fin-tracker/v1/transactions?startDate=${yesterday.toISOString()}&endDate=${today.toISOString()}`
+          `/fin-tracker/v1/transactions?startDate=${yesterday.toISOString()}&endDate=${today.toISOString()}`,
         )
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.statusCode).toBe(200);
     });
 
-    it("✅ Should fetch transactions with sorting", async () => {
+    it(" Should fetch transactions with sorting", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?sort=-amount")
         .set("Authorization", `Bearer ${authToken}`);
@@ -431,7 +437,7 @@ describe("Transaction API Test Suite", () => {
       }
     });
 
-    it("✅ Should fetch transactions with search filter", async () => {
+    it(" Should fetch transactions with search filter", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?search=test")
         .set("Authorization", `Bearer ${authToken}`);
@@ -440,13 +446,13 @@ describe("Transaction API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).get("/fin-tracker/v1/transactions");
 
       expect(response.statusCode).toBe(401);
     });
 
-    it("❌ Should handle invalid page number gracefully", async () => {
+    it(" Should handle invalid page number gracefully", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?page=0")
         .set("Authorization", `Bearer ${authToken}`);
@@ -454,7 +460,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(500);
     });
 
-    it("❌ Should handle invalid limit gracefully", async () => {
+    it(" Should handle invalid limit gracefully", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions?limit=0")
         .set("Authorization", `Bearer ${authToken}`);
@@ -467,7 +473,7 @@ describe("Transaction API Test Suite", () => {
   // ==================== GET TRANSACTION BY ID TESTS ====================
   describe("GET /fin-tracker/v1/transactions/:id - Get Transaction By ID", () => {
     // POSITIVE TEST CASES
-    it("✅ Should fetch a specific transaction successfully", async () => {
+    it(" Should fetch a specific transaction successfully", async () => {
       const response = await request(app)
         .get(`/fin-tracker/v1/transactions/${transactionData1Id}`)
         .set("Authorization", `Bearer ${authToken}`);
@@ -483,7 +489,7 @@ describe("Transaction API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when transaction ID is missing", async () => {
+    it(" Should fail when transaction ID is missing", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions/")
         .set("Authorization", `Bearer ${authToken}`);
@@ -492,7 +498,7 @@ describe("Transaction API Test Suite", () => {
       expect(Array.isArray(response.body.data.transactions)).toBe(true);
     });
 
-    it("❌ Should fail when transaction ID is invalid format", async () => {
+    it(" Should fail when transaction ID is invalid format", async () => {
       const response = await request(app)
         .get("/fin-tracker/v1/transactions/invalid_id")
         .set("Authorization", `Bearer ${authToken}`);
@@ -502,7 +508,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Invalid transaction ID format");
     });
 
-    it("❌ Should fail when transaction is not found", async () => {
+    it(" Should fail when transaction is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const response = await request(app)
         .get(`/fin-tracker/v1/transactions/${fakeId}`)
@@ -513,9 +519,9 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Transaction not found");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).get(
-        `/fin-tracker/v1/transactions/${transactionData1Id}`
+        `/fin-tracker/v1/transactions/${transactionData1Id}`,
       );
 
       expect(response.statusCode).toBe(401);
@@ -525,7 +531,7 @@ describe("Transaction API Test Suite", () => {
   // ==================== UPDATE TRANSACTION TESTS ====================
   describe("PUT /fin-tracker/v1/transactions/:id - Update Transaction", () => {
     // POSITIVE TEST CASES
-    it("✅ Should update transaction successfully", async () => {
+    it(" Should update transaction successfully", async () => {
       const updateData = {
         type: "expense",
         amount: 60.0,
@@ -543,7 +549,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.note).toBe("Updated transaction note");
     });
 
-    it("✅ Should update only specific fields", async () => {
+    it(" Should update only specific fields", async () => {
       const updateData = {
         type: "expense",
         amount: 50,
@@ -561,7 +567,7 @@ describe("Transaction API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when transaction ID is missing", async () => {
+    it(" Should fail when transaction ID is missing", async () => {
       const updateData = {
         type: "expense",
         amount: 50,
@@ -577,7 +583,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("❌ Should fail when transaction ID is invalid format", async () => {
+    it(" Should fail when transaction ID is invalid format", async () => {
       const updateData = {
         type: "expense",
         amount: 50,
@@ -595,7 +601,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Invalid transaction ID format");
     });
 
-    it("❌ Should fail when transaction is not found", async () => {
+    it(" Should fail when transaction is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const updateData = {
         type: "expense",
@@ -614,7 +620,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Transaction not found");
     });
 
-    it("❌ Should fail when type is invalid", async () => {
+    it(" Should fail when type is invalid", async () => {
       const updateData = {
         type: "invalid_type",
         amount: 50,
@@ -632,7 +638,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid transaction type is required");
     });
 
-    it("❌ Should fail when amount is negative", async () => {
+    it(" Should fail when amount is negative", async () => {
       const updateData = {
         type: "expense",
         amount: -10.0,
@@ -650,7 +656,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid amount is required");
     });
 
-    it("❌ Should fail when status is invalid", async () => {
+    it(" Should fail when status is invalid", async () => {
       const updateData = {
         type: "expense",
         amount: 50,
@@ -669,7 +675,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Invalid status");
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const updateData = {
         type: "expense",
         amount: 50,
@@ -688,7 +694,7 @@ describe("Transaction API Test Suite", () => {
   // ==================== DELETE TRANSACTION TESTS ====================
   describe("DELETE /fin-tracker/v1/transactions/:id - Delete Transaction", () => {
     // POSITIVE TEST CASES
-    it("✅ Should delete transaction successfully", async () => {
+    it(" Should delete transaction successfully", async () => {
       // First create a transaction to delete
       const transactionData = {
         type: "expense",
@@ -712,7 +718,7 @@ describe("Transaction API Test Suite", () => {
     });
 
     // NEGATIVE TEST CASES
-    it("❌ Should fail when transaction ID is missing", async () => {
+    it(" Should fail when transaction ID is missing", async () => {
       const response = await request(app)
         .delete("/fin-tracker/v1/transactions/")
         .set("Authorization", `Bearer ${authToken}`);
@@ -720,7 +726,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("❌ Should fail when transaction ID is invalid format", async () => {
+    it(" Should fail when transaction ID is invalid format", async () => {
       const response = await request(app)
         .delete("/fin-tracker/v1/transactions/invalid_id")
         .set("Authorization", `Bearer ${authToken}`);
@@ -728,7 +734,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(500);
     });
 
-    it("❌ Should fail when transaction is not found", async () => {
+    it(" Should fail when transaction is not found", async () => {
       const fakeId = "507f1f77bcf86cd799439011";
       const response = await request(app)
         .delete(`/fin-tracker/v1/transactions/${fakeId}`)
@@ -737,9 +743,9 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(500);
     });
 
-    it("❌ Should fail when unauthorized", async () => {
+    it(" Should fail when unauthorized", async () => {
       const response = await request(app).delete(
-        `/fin-tracker/v1/transactions/${transactionData1Id}`
+        `/fin-tracker/v1/transactions/${transactionData1Id}`,
       );
 
       expect(response.statusCode).toBe(401);
@@ -748,7 +754,7 @@ describe("Transaction API Test Suite", () => {
 
   // ==================== EDGE CASES AND ERROR SCENARIOS ====================
   describe("Edge Cases and Error Scenarios", () => {
-    it("❌ Should fail when body is empty", async () => {
+    it(" Should fail when body is empty", async () => {
       const response = await request(app)
         .post("/fin-tracker/v1/transactions")
         .set("Authorization", `Bearer ${authToken}`)
@@ -759,7 +765,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.message).toBe("Valid transaction type is required");
     });
 
-    it("❌ Should fail when user token is invalid", async () => {
+    it(" Should fail when user token is invalid", async () => {
       const transactionData = {
         type: "expense",
         amount: 45.99,
@@ -775,7 +781,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("❌ Should fail when category type doesn't match transaction type", async () => {
+    it(" Should fail when category type doesn't match transaction type", async () => {
       const transactionData = {
         type: "income",
         amount: 100.0,
@@ -791,7 +797,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.statusCode).toBe(500);
     });
 
-    it("❌ Should handle very large amounts", async () => {
+    it(" Should handle very large amounts", async () => {
       const transactionData = {
         type: "expense",
         amount: 999999999.99,
@@ -808,7 +814,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.amount).toBe(999999999.99);
     });
 
-    it("❌ Should handle very small amounts", async () => {
+    it(" Should handle very small amounts", async () => {
       const transactionData = {
         type: "expense",
         amount: 0.01,
@@ -825,7 +831,7 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.amount).toBe(0.01);
     });
 
-    it("✅ Should handle special characters in note", async () => {
+    it(" Should handle special characters in note", async () => {
       const transactionData = {
         type: "expense",
         amount: 25.0,
@@ -842,12 +848,12 @@ describe("Transaction API Test Suite", () => {
       expect(response.body.data.note).toBe(transactionData.note);
     });
 
-    it("✅ Should handle unicode characters in note", async () => {
+    it(" Should handle unicode characters in note", async () => {
       const transactionData = {
         type: "expense",
         amount: 25.0,
         categoryId: categoryId,
-        note: "Test transaction with unicode: 🚀💰💳🎯",
+        note: "Test transaction with unicode: ",
       };
 
       const response = await request(app)

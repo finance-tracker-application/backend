@@ -1,37 +1,43 @@
 // Basic API Tests - Testing core functionality
 import request from "supertest";
-import mongoose from "mongoose";
-import app from "../app.js";
-import path from "path";
-import dotenv from "dotenv";
-
-// Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+import app from "../../app.js";
+import User from "../../models/User.js";
+import sendEmail from "../../config/notification-config.js";
+import { securityConfig } from "../../config/security.js";
+import {
+  startTestDatabase,
+  clearTestDatabase,
+  stopTestDatabase,
+} from "../helpers/database.js";
+jest.mock("../../config/notification-config.js", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 // Increase Jest timeout
 jest.setTimeout(30000);
 
-const testMONGOdb = `mongodb://127.0.0.1:27017/testfin-trackerDB`;
-
 beforeAll(async () => {
-  if (!testMONGOdb) {
-    throw new Error("❌ Missing testMONGOdb environment variable");
+  await startTestDatabase();
+});
+
+beforeEach(async () => {
+  await clearTestDatabase();
+
+  for (const ip of ["127.0.0.1", "::ffff:127.0.0.1", "::1"]) {
+    securityConfig.authLimiter.resetKey(ip);
+    securityConfig.generalLimiter.resetKey(ip);
   }
-  await mongoose.connect(testMONGOdb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+
+  sendEmail.mockReset();
+  sendEmail.mockResolvedValue(undefined);
 });
 
 afterAll(async () => {
-  // Clean up test data
-  if (process.env.NODE_ENV === "test") {
-    await mongoose.connection.dropDatabase();
-  }
-  await mongoose.connection.close();
+  await stopTestDatabase();
 });
 
-describe("🏠 Basic API Tests", () => {
+describe(" Basic API Tests", () => {
   it("should return 200 OK for root endpoint", async () => {
     const response = await request(app).get("/");
     expect(response.statusCode).toBe(200);
@@ -41,23 +47,30 @@ describe("🏠 Basic API Tests", () => {
 
   it("should return 404 for non-existent routes", async () => {
     const response = await request(app).get(
-      "/fin-tracker/v1/non-existent-route"
+      "/fin-tracker/v1/non-existent-route",
     );
     expect(response.statusCode).toBe(404);
   });
 });
 
-describe("🔐 Authentication Tests", () => {
-  let authToken;
-  let testUserId;
+describe(" Authentication Tests", () => {
   const userName = "testuser123";
   const email = `test_${Date.now()}@example.com`;
+
+  const createLoginUser = () => User.create({
+    name: "Test User",
+    userName,
+    email,
+    password: "TestPassword123!",
+    role: "user",
+  });
 
   it("should create a new user successfully", async () => {
     const userData = {
       name: "Test User",
       userName,
-      email,      password: "TestPassword123!",
+      email,
+      password: "TestPassword123!",
     };
 
     const response = await request(app)
@@ -72,10 +85,10 @@ describe("🔐 Authentication Tests", () => {
     expect(response.body.data).toHaveProperty("email", email);
     expect(response.body.data).toHaveProperty("id");
 
-    testUserId = response.body.data.id;
   });
 
   it("should login successfully and return token", async () => {
+    await createLoginUser();
     const loginData = {
       userName,
       password: "TestPassword123!",
@@ -91,10 +104,10 @@ describe("🔐 Authentication Tests", () => {
     expect(response.body.data).toHaveProperty("token");
     expect(response.body.data).toHaveProperty("name");
 
-    authToken = response.body.data.token;
   });
 
   it("should return 401 for invalid credentials", async () => {
+    await createLoginUser();
     const invalidLogin = {
       userName,
       password: "WrongPassword",
@@ -108,6 +121,12 @@ describe("🔐 Authentication Tests", () => {
   });
 
   it("should logout successfully", async () => {
+    await createLoginUser();
+    const loginResponse = await request(app)
+      .post("/fin-tracker/v1/auth/login")
+      .send({ userName, password: "TestPassword123!" });
+    expect(loginResponse.statusCode).toBe(200);
+    const authToken = loginResponse.body.data.token;
     const response = await request(app)
       .post("/fin-tracker/v1/auth/logout")
       .set("Authorization", `Bearer ${authToken}`);
@@ -116,9 +135,9 @@ describe("🔐 Authentication Tests", () => {
   });
 });
 
-describe("👤 User Profile Tests", () => {
+describe(" User Profile Tests", () => {
   let authToken;
-  const userName = `testuser_${Date.now()}`;
+  const userName = "basic_test_user";
   const email = `test_${Date.now()}@example.com`;
 
   beforeEach(async () => {
@@ -126,10 +145,12 @@ describe("👤 User Profile Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,      password: "TestPassword123!",
+      email,
+      password: "TestPassword123!",
     };
 
-    await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    const signupResponse = await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    expect(signupResponse.statusCode).toBe(201);
 
     const loginResponse = await request(app)
       .post("/fin-tracker/v1/auth/login")
@@ -138,6 +159,7 @@ describe("👤 User Profile Tests", () => {
         password: "TestPassword123!",
       });
 
+    expect(loginResponse.statusCode).toBe(200);
     authToken = loginResponse.body.data.token;
   });
 
@@ -160,9 +182,9 @@ describe("👤 User Profile Tests", () => {
   });
 });
 
-describe("💰 Transaction Tests", () => {
+describe(" Transaction Tests", () => {
   let authToken;
-  const userName = `testuser_${Date.now()}`;
+  const userName = "basic_test_user";
   const email = `test_${Date.now()}@example.com`;
 
   beforeEach(async () => {
@@ -170,10 +192,12 @@ describe("💰 Transaction Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,      password: "TestPassword123!",
+      email,
+      password: "TestPassword123!",
     };
 
-    await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    const signupResponse = await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    expect(signupResponse.statusCode).toBe(201);
 
     const loginResponse = await request(app)
       .post("/fin-tracker/v1/auth/login")
@@ -182,6 +206,7 @@ describe("💰 Transaction Tests", () => {
         password: "TestPassword123!",
       });
 
+    expect(loginResponse.statusCode).toBe(200);
     authToken = loginResponse.body.data.token;
   });
 
@@ -217,9 +242,9 @@ describe("💰 Transaction Tests", () => {
   });
 });
 
-describe("📂 Category Tests", () => {
+describe(" Category Tests", () => {
   let authToken;
-  const userName = `testuser_${Date.now()}`;
+  const userName = "basic_test_user";
   const email = `test_${Date.now()}@example.com`;
 
   beforeEach(async () => {
@@ -227,10 +252,12 @@ describe("📂 Category Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,      password: "TestPassword123!",
+      email,
+      password: "TestPassword123!",
     };
 
-    await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    const signupResponse = await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    expect(signupResponse.statusCode).toBe(201);
 
     const loginResponse = await request(app)
       .post("/fin-tracker/v1/auth/login")
@@ -239,6 +266,7 @@ describe("📂 Category Tests", () => {
         password: "TestPassword123!",
       });
 
+    expect(loginResponse.statusCode).toBe(200);
     authToken = loginResponse.body.data.token;
   });
 
@@ -271,9 +299,9 @@ describe("📂 Category Tests", () => {
   });
 });
 
-describe("💼 Budget Tests", () => {
+describe(" Budget Tests", () => {
   let authToken;
-  const userName = `testuser_${Date.now()}`;
+  const userName = "basic_test_user";
   const email = `test_${Date.now()}@example.com`;
 
   beforeEach(async () => {
@@ -281,10 +309,12 @@ describe("💼 Budget Tests", () => {
     const userData = {
       name: "Test User",
       userName,
-      email,      password: "TestPassword123!",
+      email,
+      password: "TestPassword123!",
     };
 
-    await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    const signupResponse = await request(app).post("/fin-tracker/v1/auth/signup").send(userData);
+    expect(signupResponse.statusCode).toBe(201);
 
     const loginResponse = await request(app)
       .post("/fin-tracker/v1/auth/login")
@@ -293,6 +323,7 @@ describe("💼 Budget Tests", () => {
         password: "TestPassword123!",
       });
 
+    expect(loginResponse.statusCode).toBe(200);
     authToken = loginResponse.body.data.token;
   });
 
@@ -308,7 +339,7 @@ describe("💼 Budget Tests", () => {
   });
 });
 
-describe("🔒 Security Tests", () => {
+describe(" Security Tests", () => {
   it("should return 401 for protected routes without token", async () => {
     const protectedRoutes = [
       "/fin-tracker/v1/users/profile",

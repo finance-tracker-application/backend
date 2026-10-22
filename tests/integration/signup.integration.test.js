@@ -3,13 +3,19 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
-import app from "../app.js";
-import User from "../models/User.js";
-import sendEmail from "../config/notification-config.js";
-import { securityConfig } from "../config/security.js";
+import app from "../../app.js";
+import User from "../../models/User.js";
+import sendEmail from "../../config/notification-config.js";
+import { securityConfig } from "../../config/security.js";
+
+import {
+  startTestDatabase,
+  clearTestDatabase,
+  stopTestDatabase,
+} from "../helpers/database.js";
 
 // Your existing Babel/Jest setup supports this mock.
-jest.mock("../config/notification-config.js", () => ({
+jest.mock("../../config/notification-config.js", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
@@ -29,19 +35,14 @@ const validSignup = () => ({
 });
 
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-
-  // Connect only to the disposable instance.
-  await mongoose.connect(mongo.getUri(), {
-    dbName: "signup_integration",
-  });
+  await startTestDatabase();
 
   // Wait for unique indexes before testing database writes.
   await User.init();
 });
 
 beforeEach(async () => {
-  await User.deleteMany({});
+  await clearTestDatabase();
 
   // Each scenario starts with a fresh local-client allowance. Keep the real
   // limiter mounted; requests in earlier tests must not throttle later tests.
@@ -55,11 +56,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-
-  if (mongo) {
-    await mongo.stop();
-  }
+  await stopTestDatabase();
 });
 
 describe("POST /auth/signup", () => {
@@ -135,9 +132,12 @@ describe("POST /auth/signup", () => {
     ["string", "hello"],
   ])("rejects %s without side effects", async (_label, body) => {
     const pending = request(app).post(SIGNUP_URL);
-    const response = body === undefined
-      ? await pending
-      : await pending.set("Content-Type", "application/json").send(JSON.stringify(body));
+    const response =
+      body === undefined
+        ? await pending
+        : await pending
+            .set("Content-Type", "application/json")
+            .send(JSON.stringify(body));
 
     expect(response.status).toBe(400);
     expect(await User.countDocuments({})).toBe(0);

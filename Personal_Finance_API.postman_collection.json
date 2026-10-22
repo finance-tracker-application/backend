@@ -19,7 +19,7 @@
   ],
   "item": [
     {
-      "name": "🏠 Health Check",
+      "name": " Health Check",
       "item": [
         {
           "name": "Health Check",
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "name": "🔐 Authentication",
+      "name": " Authentication",
       "item": [
         {
           "name": "User Signup",
@@ -166,7 +166,7 @@
       ]
     },
     {
-      "name": "👤 User Management",
+      "name": " User Management",
       "item": [
         {
           "name": "Get User Profile",
@@ -303,7 +303,7 @@
       ]
     },
     {
-      "name": "📂 Categories",
+      "name": " Categories",
       "item": [
         {
           "name": "Create Category",
@@ -446,7 +446,7 @@
       ]
     },
     {
-      "name": "💰 Transactions",
+      "name": " Transactions",
       "item": [
         {
           "name": "Create Transaction",
@@ -618,7 +618,7 @@
       ]
     },
     {
-      "name": "📊 Budgets",
+      "name": " Budgets",
       "item": [
         {
           "name": "Create Budget",
